@@ -1,5 +1,11 @@
+mod components;
+
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use std::f32::consts::TAU;
 use rand::prelude::*;
+use components::*;
+
+const DEFAULT_FLYING_RECOVERY_RATE: f32 = 1000.0;
 
 fn proper_signum(x: f32) -> f32 {
     if x > 0.0 {
@@ -14,6 +20,7 @@ fn proper_signum(x: f32) -> f32 {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_startup_system(spawn_camera)
         .add_startup_system(spawn_player)
         .add_startup_system(spawn_dots)
@@ -23,45 +30,10 @@ fn main() {
         .add_system(apply_angular_velocity)
 		.add_system(follow_player)
 		.add_system(update_transforms)
+        .add_system(manage_flyers)
+        .add_system(tripping)
         .run();
 }
-
-#[derive(Component)]
-struct Position {
-    value: Vec2
-}
-
-#[derive(Component)]
-struct Velocity {
-    value: Vec2
-}
-
-#[derive(Component)]
-struct Gait {
-    max_speed: f32,
-    acceleration: f32,
-    stand_threshold: f32,
-    trip_threshold: f32
-}
-
-#[derive(Component)]
-struct Angle {
-    value: f32
-}
-
-#[derive(Component)]
-struct AngularVelocity {
-    value: f32
-}
-
-#[derive(Component)]
-struct AngularGait {
-    max_speed: f32,
-    acceleration: f32
-}
-
-#[derive(Component)]
-struct Player {}
 
 fn spawn_camera (mut commands: Commands) {
     commands.spawn(
@@ -84,10 +56,10 @@ fn spawn_player (
             value: Vec2::ZERO
         },
         Gait {
-            max_speed: 100.0,
+            max_speed: 200.0,
             acceleration: 800.0,
-            stand_threshold: 110.0,
-            trip_threshold: 120.0
+            stand_threshold: 210.0,
+            trip_threshold: 220.0
         },
         Angle {
             value: 0.0
@@ -96,22 +68,23 @@ fn spawn_player (
             value: 0.0
         },
         AngularGait {
-            max_speed: std::f32::consts::TAU / 2.0,
-            acceleration: std::f32::consts::TAU * 8.0
+            max_speed: TAU / 2.0,
+            acceleration: TAU * 8.0
         },
-        Player {},
+        Player,
         MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::new(10.0).into()).into(),
             material: materials.add(ColorMaterial::from(Color::WHITE)),
             transform: Transform::from_translation(Vec3::ZERO),
             ..default()
-        }
+        },
+        Grounded
     ));
 }
 
 fn random_vec2_circle(rng: &mut rand::rngs::ThreadRng, radius: f32) -> Vec2 {
     let r = (rng.gen_range(0.0..1.0) as f32).powf(0.5) * radius;
-    let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+    let theta = rng.gen_range(0.0..TAU);
     return Vec2::new(theta.cos() * r, theta.sin() * r);
 }
 
@@ -121,10 +94,10 @@ fn spawn_dots (
 	mut materials: ResMut<Assets<ColorMaterial>>
 ) {
     let mut rng = rand::thread_rng();
-    for _ in 0..100 {
+    for _ in 0..1000 {
         commands.spawn((
             Position {
-                value: random_vec2_circle(&mut rng, 300.0) + Vec2::new(300.0, 0.0)
+                value: random_vec2_circle(&mut rng, 1000.0) + Vec2::new(300.0, 0.0)
             },
             MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(2.0).into()).into(),
@@ -145,7 +118,19 @@ fn locomotion_handle_axis(current: f32, target: f32, acceleration: f32, delta_se
 }
 
 fn walking (
-    mut query: Query<(&mut Velocity, &Gait, Option<&Angle>), With<Player>>,
+    mut query: Query<
+        (
+            &mut Velocity,
+            &Gait,
+            Option<&Angle>
+        ), (
+            With<Player>,
+            Or<(
+                With<Grounded>,
+                With<Levitates> // Levitators don't need to be grounded to move
+            )>
+        )
+    >,
     keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>
 ) {
@@ -174,7 +159,7 @@ fn walking (
         } else {
             entity_angle = 0.0;
         }
-        let rotate_angle = entity_angle - std::f32::consts::TAU / 4.0;
+        let rotate_angle = entity_angle - TAU / 4.0;
         let mut relative_velocity = Vec2::from_angle(-rotate_angle).rotate(velocity.value);
 
         let difference = target_relative_velocity - relative_velocity;
@@ -194,7 +179,18 @@ fn walking (
 }
 
 fn turning (
-    mut query: Query<(&mut AngularVelocity, &AngularGait), With<Player>>,
+    mut query: Query<
+        (
+            &mut AngularVelocity,
+            &AngularGait
+        ), (
+            With<Player>,
+            Or<(
+                With<Grounded>,
+                With<Levitates>
+            )>
+        )
+    >,
     keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>
 ) {
@@ -247,7 +243,7 @@ fn follow_player (
             } else {
                 entity_angle = 0.0;
             }
-            camera_transform.rotation = Quat::from_rotation_z(entity_angle - std::f32::consts::TAU / 4.0);
+            camera_transform.rotation = Quat::from_rotation_z(entity_angle - TAU / 4.0);
             let camera_position = player_position.value + Vec2::from_angle(entity_angle) * 250.0; // Project camera position forwards to move player to bottom of screen
             camera_transform.translation = Vec3::new(camera_position.x, camera_position.y, 0.0);
         }
@@ -257,5 +253,61 @@ fn follow_player (
 fn update_transforms (mut query: Query<(&mut Transform, &Position)>) {
     for (mut transform, position) in query.iter_mut() {
         transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
+    }
+}
+
+fn manage_flyers(
+    mut commands: Commands,
+    mut query: Query<(
+        Entity,
+        &mut Velocity,
+        Option<&FlyingRecoveryRate>,
+        Option<&Levitates>,
+        Option<&Gait>
+    ), Without<Grounded>>,
+    time: Res<Time>
+) {
+    for (
+        entity,
+        mut velocity,
+        flying_recovery_rate_option,
+        levitates_option,
+        gait_option
+    ) in query.iter_mut() {
+        let old_speed = velocity.value.length();
+        let speed_reduction;
+        if let Some(flying_recovery_rate) = flying_recovery_rate_option {
+            speed_reduction = flying_recovery_rate.value;
+        } else {
+            speed_reduction = DEFAULT_FLYING_RECOVERY_RATE;
+        }
+        let new_speed = (old_speed - speed_reduction * time.delta_seconds()).max(0.0);
+
+        if let None = levitates_option {
+            let stop_flying_threshold;
+            if let Some(gait) = gait_option {
+                stop_flying_threshold = gait.stand_threshold;
+            } else {
+                stop_flying_threshold = 0.0;
+            }
+            if new_speed <= stop_flying_threshold {
+                commands.entity(entity).insert(Grounded);
+            }
+        }
+
+        if old_speed > 0.0 {
+            velocity.value = velocity.value.normalize() * new_speed;
+        }
+    }
+}
+
+fn tripping(
+    mut commands: Commands,
+    query: Query<(Entity, &Gait, &Velocity), With<Grounded>>
+) {
+    for (entity, gait, velocity) in query.iter() {
+        if velocity.value.length() > gait.trip_threshold {
+            commands.entity(entity).remove::<Grounded>();
+        }
     }
 }

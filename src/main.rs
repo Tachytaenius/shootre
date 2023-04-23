@@ -1,8 +1,9 @@
 mod components;
 
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::prelude::*;
 use std::f32::consts::TAU;
 use rand::prelude::*;
+use bevy_prototype_lyon::prelude::*;
 use components::*;
 
 const DEFAULT_FLYING_RECOVERY_RATE: f32 = 1000.0;
@@ -20,6 +21,7 @@ fn proper_signum(x: f32) -> f32 {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugin(ShapePlugin)
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_startup_system(spawn_camera)
         .add_startup_system(spawn_player)
@@ -32,6 +34,10 @@ fn main() {
 		.add_system(update_transforms)
         .add_system(manage_flyers)
         .add_system(tripping)
+        .add_system(hollow_flying)
+        .add_system(fill_grounded)
+        .add_system(shooting)
+        .add_system(gun_cooldown)
         .run();
 }
 
@@ -44,10 +50,34 @@ fn spawn_camera (mut commands: Commands) {
 }
 
 fn spawn_player (
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<ColorMaterial>>
+    mut commands: Commands
 ) {
+    let shape = shapes::Circle {
+        radius: 10.0,
+        ..default()
+    };
+    let _machine_gun = Gun {
+        projectile_speed: 2000.0,
+        projectile_radius: 1.0,
+        projectile_spread: Vec2::new(10.0, 10.0),
+        projectile_count: 1,
+        muzzle_distance: 12.5,
+        cooldown: 0.01,
+        auto: true,
+
+        cooldown_timer: 0.0
+    };
+    let shotgun = Gun {
+        projectile_speed: 1750.0,
+        projectile_radius: 0.2,
+        projectile_spread: Vec2::new(50.0, 50.0),
+        projectile_count: 25,
+        muzzle_distance: 11.0,
+        cooldown: 1.0,
+        auto: false,
+
+        cooldown_timer: 0.0
+    };
     commands.spawn((
         Position {
             value: Vec2::ZERO
@@ -72,13 +102,14 @@ fn spawn_player (
             acceleration: TAU * 8.0
         },
         Player,
-        MaterialMesh2dBundle {
-            mesh: meshes.add(shape::Circle::new(10.0).into()).into(),
-            material: materials.add(ColorMaterial::from(Color::WHITE)),
-            transform: Transform::from_translation(Vec3::ZERO),
+        Grounded,
+        shotgun,
+        ShapeBundle {
+            path: GeometryBuilder::build_as(&shape),
             ..default()
         },
-        Grounded
+        Fill::color(Color::WHITE),
+        Stroke::new(Color::WHITE, 1.0)
     ));
 }
 
@@ -89,22 +120,24 @@ fn random_vec2_circle(rng: &mut rand::rngs::ThreadRng, radius: f32) -> Vec2 {
 }
 
 fn spawn_dots (
-    mut commands: Commands,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<ColorMaterial>>
+    mut commands: Commands
 ) {
+    let shape = shapes::Circle {
+        radius: 2.0,
+        ..default()
+    };
     let mut rng = rand::thread_rng();
     for _ in 0..1000 {
         commands.spawn((
             Position {
                 value: random_vec2_circle(&mut rng, 1000.0) + Vec2::new(300.0, 0.0)
             },
-            MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(2.0).into()).into(),
-                material: materials.add(ColorMaterial::from(Color::WHITE)),
-                transform: Transform::from_translation(Vec3::ZERO),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
                 ..default()
-            }
+            },
+            Fill::color(Color::NONE),
+            Stroke::new(Color::WHITE, 1.0)
         ));
     }
 }
@@ -264,7 +297,7 @@ fn manage_flyers(
         Option<&FlyingRecoveryRate>,
         Option<&Levitates>,
         Option<&Gait>
-    ), Without<Grounded>>,
+    ), With<Flying>>,
     time: Res<Time>
 ) {
     for (
@@ -291,6 +324,7 @@ fn manage_flyers(
                 stop_flying_threshold = 0.0;
             }
             if new_speed <= stop_flying_threshold {
+                commands.entity(entity).remove::<Flying>();
                 commands.entity(entity).insert(Grounded);
             }
         }
@@ -308,6 +342,120 @@ fn tripping(
     for (entity, gait, velocity) in query.iter() {
         if velocity.value.length() > gait.trip_threshold {
             commands.entity(entity).remove::<Grounded>();
+            commands.entity(entity).insert(Flying);
+        }
+    }
+}
+
+fn hollow_flying(mut query: Query<&mut Fill, Added<Flying>>) {
+    for mut fill in query.iter_mut() {
+        fill.color = Color::NONE;
+    }
+}
+
+fn fill_grounded(mut query: Query<(&mut Fill, &Stroke), Added<Grounded>>) {
+    for (mut fill, stroke) in query.iter_mut() {
+        fill.color = stroke.color;
+    }
+}
+
+fn gun_cooldown(
+    mut query: Query<&mut Gun>,
+    time: Res<Time>
+) {
+    for mut gun in query.iter_mut() {
+        gun.cooldown_timer = (gun.cooldown_timer - time.delta_seconds()).max(0.0);
+    }
+}
+
+fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldown: &mut f32) {
+    // Move current up towards target but "stop" if cooldown ticks down towards 0 before then
+    assert!(*current < target); // Not <= because we shouldn't be progressing time if we've already reached the target
+    let delta = (target - *current).min(*cooldown);
+    *current += delta;
+    *cooldown -= delta;
+}
+
+fn shooting(
+    mut commands: Commands,
+    mut query: Query<(&mut Gun, &Velocity, &AngularVelocity, &Angle, &Position), With<Player>>, // TODO: Make velocities options
+    keyboard_input: Res<Input<KeyCode>>,
+    time: Res<Time>
+) {
+    if let Ok((mut gun, velocity, angular_velocity, angle, position)) = query.get_single_mut() {
+        let mut rng = rand::thread_rng();
+
+        let mut shoot = if gun.auto {
+            keyboard_input.pressed(KeyCode::Space)
+        } else {
+            keyboard_input.just_pressed(KeyCode::Space)
+        };
+        
+        // The key point here is that for rapid-fire guns, gun.cooldown (and
+        // by extension gun.cooldown_timer) may fit in target_time multiple times
+        let mut current_time = 0.0;
+        let target_time = time.delta_seconds();
+        while current_time < target_time {
+            progress_time_with_cooldown_interrupt(&mut current_time, target_time, &mut gun.cooldown_timer);
+            if shoot && gun.cooldown_timer == 0.0 {
+                gun.cooldown_timer = gun.cooldown;
+                if !gun.auto { // Only once
+                    shoot = false;
+                }
+
+                let shape = shapes::Circle {
+                    radius: gun.projectile_radius,
+                    ..default()
+                };
+
+                let shooter_position = position.value + velocity.value * current_time;
+                let shooter_angle = angle.value + angular_velocity.value * current_time;
+                let aim_direction = Vec2::from_angle(shooter_angle);
+
+                for _ in 0..gun.projectile_count {
+                    // target_time - current_time is used a couple of times because the earlier the projectile was fired, the longer it has had for its properties to advance
+                    let mut projectile_velocity = velocity.value + aim_direction * gun.projectile_speed +
+                        random_vec2_circle(&mut rng, 1.0) * gun.projectile_spread; // In here because of projectile-specific use of random
+                    let projectile_position = shooter_position +
+                        aim_direction * gun.muzzle_distance +
+                        projectile_velocity * (target_time - current_time);
+
+                    // Simulate a bit of flying recovery
+                    let old_speed = projectile_velocity.length();
+                    let flying_recovery_rate = 500.0;
+                    let speed_reduction = flying_recovery_rate;
+                    let new_speed = (old_speed - speed_reduction * (target_time - current_time)).max(0.0);
+                    if old_speed > 0.0 {
+                        projectile_velocity = projectile_velocity.normalize() * new_speed;
+                    }
+
+                    commands.spawn((
+                        Position {
+                            value: projectile_position
+                        },
+                        Velocity {
+                            value: projectile_velocity
+                        },
+                        ShapeBundle {
+                            path: GeometryBuilder::build_as(&shape),
+                            transform: Transform { // In order to avoid projectiles appearing at the centre of the world for one frame
+                                translation: Vec3::new(position.value.x, position.value.y, 0.0),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        Fill::color(Color::NONE),
+                        Stroke::new(Color::CYAN, 1.0),
+                        Flying,
+                        FlyingRecoveryRate {
+                            value: flying_recovery_rate
+                        }
+                    ));
+                }
+            } else {
+                // If we're not shooting (or gun.cooldown_timer failed to reach 0 before current_time reached target_time)
+                break;
+            }
         }
     }
 }

@@ -41,9 +41,25 @@ pub struct Player;
 pub struct Grounded;
 
 #[derive(Component)]
+pub struct Flying;
+
+#[derive(Component)]
 pub struct Levitates;
 
 #[derive(Component)]
 pub struct FlyingRecoveryRate {
     pub value: f32
+}
+
+#[derive(Component)]
+pub struct Gun {
+    pub projectile_speed: f32,
+    pub projectile_radius: f32,
+    pub projectile_spread: Vec2,
+    pub projectile_count: u32,
+    pub muzzle_distance: f32,
+    pub cooldown: f32,
+    pub auto: bool,
+
+    pub cooldown_timer: f32
 }

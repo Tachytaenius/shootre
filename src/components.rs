@@ -6,6 +6,11 @@ pub struct Position {
 }
 
 #[derive(Component)]
+pub struct PreviousPosition {
+    pub value: Vec2
+}
+
+#[derive(Component)]
 pub struct Velocity {
     pub value: Vec2
 }
@@ -16,6 +21,11 @@ pub struct Gait {
     pub acceleration: f32,
     pub stand_threshold: f32,
     pub trip_threshold: f32
+}
+
+#[derive(Component)]
+pub struct PreviousAngle {
+    pub value: f32
 }
 
 #[derive(Component)]
@@ -54,12 +64,20 @@ pub struct FlyingRecoveryRate {
 #[derive(Component)]
 pub struct Gun {
     pub projectile_speed: f32,
-    pub projectile_radius: f32,
-    pub projectile_spread: Vec2,
+    pub projectile_spread: Vec2, // TODO: Make this proportional to speed. Have the distribution circle rest on the muzzle as opposed to being centred on it?
     pub projectile_count: u32,
     pub muzzle_distance: f32,
+    pub projectile_colour: Color,
     pub cooldown: f32,
     pub auto: bool,
 
     pub cooldown_timer: f32
+}
+
+#[derive(Component)]
+pub struct TracedLine;
+
+#[derive(Component)]
+pub struct ProjectileColour {
+    pub value: Color
 }

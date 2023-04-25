@@ -1,3 +1,5 @@
+// This project may have TODOs in it
+
 mod components;
 
 use bevy::prelude::*;
@@ -19,25 +21,45 @@ fn proper_signum(x: f32) -> f32 {
 }
 
 fn main() {
+    #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
+    struct StorePreviousValuesSet;
+
+    #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
+    struct MainSet;
+
+    #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
+    enum RenderPreparationSet {CommandFlush, Prepare}
+
     App::new()
+        // TODO: Work out deterministic-but-still-parallelised system order
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_startup_system(spawn_camera)
         .add_startup_system(spawn_player)
         .add_startup_system(spawn_dots)
-        .add_system(walking)
-        .add_system(turning)
-        .add_system(apply_velocity)
-        .add_system(apply_angular_velocity)
-		.add_system(follow_player)
-		.add_system(update_transforms)
-        .add_system(manage_flyers)
-        .add_system(tripping)
-        .add_system(hollow_flying)
-        .add_system(fill_grounded)
-        .add_system(shooting)
-        .add_system(gun_cooldown)
+        .add_systems((
+            store_previous_position,
+            store_previous_angle
+        ).in_set(StorePreviousValuesSet).before(MainSet))
+        .add_systems((
+            walking,
+            turning,
+            apply_velocity,
+            apply_angular_velocity,
+            manage_flyers,
+            tripping,
+            shooting,
+            gun_cooldown
+        ).in_set(MainSet).before(RenderPreparationSet::CommandFlush))
+        .add_system(apply_system_buffers.in_set(RenderPreparationSet::CommandFlush).before(RenderPreparationSet::Prepare))
+        .add_systems((
+            hollow_flying,
+            fill_grounded,
+            follow_player,
+            update_transforms,
+            rebuild_traced_shape
+        ).in_set(RenderPreparationSet::Prepare))
         .run();
 }
 
@@ -58,9 +80,9 @@ fn spawn_player (
     };
     let _machine_gun = Gun {
         projectile_speed: 2000.0,
-        projectile_radius: 1.0,
         projectile_spread: Vec2::new(10.0, 10.0),
         projectile_count: 1,
+        projectile_colour: Color::CYAN,
         muzzle_distance: 12.5,
         cooldown: 0.01,
         auto: true,
@@ -69,18 +91,23 @@ fn spawn_player (
     };
     let shotgun = Gun {
         projectile_speed: 1750.0,
-        projectile_radius: 0.2,
         projectile_spread: Vec2::new(50.0, 50.0),
         projectile_count: 25,
+        projectile_colour: Color::CYAN,
         muzzle_distance: 11.0,
         cooldown: 1.0,
         auto: false,
 
         cooldown_timer: 0.0
     };
+    let position = Vec2::ZERO;
+    let angle = 0.0;
     commands.spawn((
         Position {
-            value: Vec2::ZERO
+            value: position
+        },
+        PreviousPosition {
+            value: position
         },
         Velocity {
             value: Vec2::ZERO
@@ -92,7 +119,10 @@ fn spawn_player (
             trip_threshold: 220.0
         },
         Angle {
-            value: 0.0
+            value: angle
+        },
+        PreviousAngle {
+            value: angle
         },
         AngularVelocity {
             value: 0.0
@@ -403,11 +433,6 @@ fn shooting(
                     shoot = false;
                 }
 
-                let shape = shapes::Circle {
-                    radius: gun.projectile_radius,
-                    ..default()
-                };
-
                 let shooter_position = position.value + velocity.value * current_time;
                 let shooter_angle = angle.value + angular_velocity.value * current_time;
                 let aim_direction = Vec2::from_angle(shooter_angle);
@@ -416,9 +441,9 @@ fn shooting(
                     // target_time - current_time is used a couple of times because the earlier the projectile was fired, the longer it has had for its properties to advance
                     let mut projectile_velocity = velocity.value + aim_direction * gun.projectile_speed +
                         random_vec2_circle(&mut rng, 1.0) * gun.projectile_spread; // In here because of projectile-specific use of random
-                    let projectile_position = shooter_position +
-                        aim_direction * gun.muzzle_distance +
-                        projectile_velocity * (target_time - current_time);
+                    let projectile_origin = shooter_position + aim_direction * gun.muzzle_distance;
+                    let projectile_position = projectile_origin
+                        + projectile_velocity * (target_time - current_time);
 
                     // Simulate a bit of flying recovery
                     let old_speed = projectile_velocity.length();
@@ -433,28 +458,89 @@ fn shooting(
                         Position {
                             value: projectile_position
                         },
+                        PreviousPosition {
+                            value: projectile_origin
+                        },
                         Velocity {
                             value: projectile_velocity
                         },
                         ShapeBundle {
-                            path: GeometryBuilder::build_as(&shape),
-                            transform: Transform { // In order to avoid projectiles appearing at the centre of the world for one frame
-                                translation: Vec3::new(position.value.x, position.value.y, 0.0),
-                                ..default()
-                            },
                             ..default()
                         },
-                        Fill::color(Color::NONE),
-                        Stroke::new(Color::CYAN, 1.0),
+                        Stroke::new(gun.projectile_colour, 1.0), // Gets immediately overwritten by a version with calculated alpha by rebuild_traced_shape
+                        ProjectileColour {
+                            value: gun.projectile_colour
+                        },
                         Flying,
                         FlyingRecoveryRate {
                             value: flying_recovery_rate
-                        }
+                        },
+                        TracedLine
                     ));
                 }
             } else {
                 // If we're not shooting (or gun.cooldown_timer failed to reach 0 before current_time reached target_time)
                 break;
+            }
+        }
+    }
+}
+
+fn store_previous_position(mut query: Query<(&mut PreviousPosition, &Position)>) {
+    for (mut previous_position, position) in query.iter_mut() {
+        previous_position.value = position.value;
+    }
+}
+
+fn store_previous_angle(mut query: Query<(&mut PreviousAngle, &Angle)>) {
+    for (mut previous_angle, angle) in query.iter_mut() {
+        previous_angle.value = angle.value;
+    }
+}
+
+const DRAW_TRACER_AS_POINT_THRESHOLD: f32 = 1.0;
+const TRACER_POINT_CIRCLE_RADIUS: f32 = 0.1;
+
+fn rebuild_traced_shape(
+    mut commands: Commands,
+    mut tracer_query: Query<(Entity, &mut Stroke, &ProjectileColour, &Position, &PreviousPosition), (With<Path>, With<TracedLine>)>,
+    player_query: Query<(&Position, &Angle, &PreviousPosition, &PreviousAngle), With<Player>>
+) {
+    if let Ok((player_position, player_angle, player_previous_position, player_previous_angle)) = player_query.get_single() {
+        for (entity, mut tracer_stroke, tracer_projectile_colour, tracer_position, tracer_previous_position) in tracer_query.iter_mut() {
+            let player_previous_camera_transform = Transform {
+                translation: Vec3::new(player_previous_position.value.x, player_previous_position.value.y, 0.0),
+                rotation: Quat::from_rotation_z(player_previous_angle.value),
+                ..default()
+            };
+            let player_current_camera_transform = Transform {
+                translation: Vec3::new(player_position.value.x, player_position.value.y, 0.0),
+                rotation: Quat::from_rotation_z(player_angle.value),
+                ..default()
+            };
+            let tracer_previous_screen_space_position_4d = player_previous_camera_transform.compute_matrix().inverse() * // Inverting because camera
+                Vec4::new(tracer_previous_position.value.x, tracer_previous_position.value.y, 0.0, 1.0);
+            let tracer_current_screen_space_position_4d = player_current_camera_transform.compute_matrix().inverse() *
+                Vec4::new(tracer_position.value.x, tracer_position.value.y, 0.0, 1.0);
+
+            let path_vector = Vec2::from_angle(player_angle.value).rotate( // Transform out of screen space back into world space, but keeping the difference
+                Vec2::new(tracer_previous_screen_space_position_4d.x, tracer_previous_screen_space_position_4d.y)
+                - Vec2::new(tracer_current_screen_space_position_4d.x, tracer_current_screen_space_position_4d.y)
+            );
+
+            if path_vector.length() <= DRAW_TRACER_AS_POINT_THRESHOLD {
+                let circle = shapes::Circle {
+                    radius: TRACER_POINT_CIRCLE_RADIUS,
+                    center: path_vector
+                };
+                commands.entity(entity).insert(GeometryBuilder::build_as(&circle));
+            } else {
+                let line = shapes::Line(Vec2::ZERO, path_vector);
+                tracer_stroke.color.set_a(
+                    tracer_projectile_colour.value.a()
+                    * (1.0 / path_vector.length()).min(1.0)
+                );
+                commands.entity(entity).insert(GeometryBuilder::build_as(&line));
             }
         }
     }

@@ -42,7 +42,7 @@ fn main() {
             store_previous_position,
             store_previous_angle,
             remove_spawned_mid_tick
-        ).in_set(PreUpdateSet::Main).before(MainSet))
+        ).in_set(PreUpdateSet::Main).before(PreUpdateSet::CommandFlush))
         .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(MainSet))
 
         .add_systems((

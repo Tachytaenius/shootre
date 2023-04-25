@@ -22,44 +22,51 @@ fn proper_signum(x: f32) -> f32 {
 
 fn main() {
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
-    struct StorePreviousValuesSet;
+    enum PreUpdateSet {Main, CommandFlush}
 
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
     struct MainSet;
 
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
-    enum RenderPreparationSet {CommandFlush, Prepare}
+    enum RenderPreparationSet {CommandFlush, Main}
 
     App::new()
         // TODO: Work out deterministic-but-still-parallelised system order
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+
         .add_startup_system(spawn_camera)
         .add_startup_system(spawn_player)
         .add_startup_system(spawn_dots)
+
         .add_systems((
             store_previous_position,
-            store_previous_angle
-        ).in_set(StorePreviousValuesSet).before(MainSet))
+            store_previous_angle,
+            remove_spawned_mid_tick
+        ).in_set(PreUpdateSet::Main).before(MainSet))
+        .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(MainSet))
+
         .add_systems((
-            walking,
-            turning,
+            walking.before(shooting),
+            turning.before(shooting),
+            shooting.before(apply_velocity).before(apply_angular_velocity),
             apply_velocity,
             apply_angular_velocity,
             manage_flyers,
             tripping,
-            shooting,
             gun_cooldown
         ).in_set(MainSet).before(RenderPreparationSet::CommandFlush))
-        .add_system(apply_system_buffers.in_set(RenderPreparationSet::CommandFlush).before(RenderPreparationSet::Prepare))
+
+        .add_system(apply_system_buffers.in_set(RenderPreparationSet::CommandFlush).before(RenderPreparationSet::Main))
         .add_systems((
             hollow_flying,
             fill_grounded,
             follow_player,
             update_transforms,
             rebuild_traced_shape
-        ).in_set(RenderPreparationSet::Prepare))
+        ).in_set(RenderPreparationSet::Main))
+
         .run();
 }
 
@@ -476,7 +483,10 @@ fn shooting(
                         FlyingRecoveryRate {
                             value: flying_recovery_rate
                         },
-                        TracedLine
+                        TracedLine,
+                        SpawnedMidTick {
+                            when: current_time / target_time
+                        }
                     ));
                 }
             } else {
@@ -504,14 +514,28 @@ const TRACER_POINT_CIRCLE_RADIUS: f32 = 0.1;
 
 fn rebuild_traced_shape(
     mut commands: Commands,
-    mut tracer_query: Query<(Entity, &mut Stroke, &ProjectileColour, &Position, &PreviousPosition), (With<Path>, With<TracedLine>)>,
+    mut tracer_query: Query<(Entity, &mut Stroke, Option<&SpawnedMidTick>, &ProjectileColour, &Position, &PreviousPosition), (With<Path>, With<TracedLine>)>,
     player_query: Query<(&Position, &Angle, &PreviousPosition, &PreviousAngle), With<Player>>
 ) {
     if let Ok((player_position, player_angle, player_previous_position, player_previous_angle)) = player_query.get_single() {
-        for (entity, mut tracer_stroke, tracer_projectile_colour, tracer_position, tracer_previous_position) in tracer_query.iter_mut() {
+        for (entity, mut tracer_stroke, tracer_spawned_mid_tick_option, tracer_projectile_colour, tracer_position, tracer_previous_position) in tracer_query.iter_mut() {
+            let previous_transform_lerp;
+            if let Some(tracer_spawned_mid_tick) = tracer_spawned_mid_tick_option {
+                previous_transform_lerp = tracer_spawned_mid_tick.when;
+            } else {
+                previous_transform_lerp = 0.0;
+            }
+
+            let player_previous_position = // Shadow
+                player_previous_position.value * (1.0 - previous_transform_lerp)
+                + player_position.value * previous_transform_lerp;
+
             let player_previous_camera_transform = Transform {
-                translation: Vec3::new(player_previous_position.value.x, player_previous_position.value.y, 0.0),
-                rotation: Quat::from_rotation_z(player_previous_angle.value),
+                translation: Vec3::new(player_previous_position.x, player_previous_position.y, 0.0),
+                rotation: Quat::from_rotation_z(
+                    player_previous_angle.value * (1.0 - previous_transform_lerp)
+                    + player_angle.value * previous_transform_lerp
+                ),
                 ..default()
             };
             let player_current_camera_transform = Transform {
@@ -519,6 +543,7 @@ fn rebuild_traced_shape(
                 rotation: Quat::from_rotation_z(player_angle.value),
                 ..default()
             };
+
             let tracer_previous_screen_space_position_4d = player_previous_camera_transform.compute_matrix().inverse() * // Inverting because camera
                 Vec4::new(tracer_previous_position.value.x, tracer_previous_position.value.y, 0.0, 1.0);
             let tracer_current_screen_space_position_4d = player_current_camera_transform.compute_matrix().inverse() *
@@ -544,5 +569,14 @@ fn rebuild_traced_shape(
                 commands.entity(entity).insert(GeometryBuilder::build_as(&line));
             }
         }
+    }
+}
+
+fn remove_spawned_mid_tick(
+    mut commands: Commands,
+    query: Query<Entity, With<SpawnedMidTick>>
+) {
+    for entity in query.iter() {
+        commands.entity(entity).remove::<SpawnedMidTick>();
     }
 }

@@ -82,3 +82,8 @@ pub struct TracedLine;
 pub struct ProjectileColour {
     pub value: Color
 }
+
+#[derive(Component)]
+pub struct SpawnedMidTick {
+    pub when: f32 // From 0 to 1
+}

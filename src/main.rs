@@ -86,7 +86,7 @@ fn spawn_player (
     let _machine_gun = Gun {
         projectile_speed: 2000.0,
         projectile_flying_recovery_rate: 250.0,
-        projectile_spread: Vec2::new(10.0, 10.0),
+        projectile_spread: Vec2::new(0.005, 0.005),
         projectile_count: 1,
         projectile_colour: Color::CYAN,
         muzzle_distance: 12.5,
@@ -98,7 +98,7 @@ fn spawn_player (
     let shotgun = Gun {
         projectile_speed: 1750.0,
         projectile_flying_recovery_rate: 500.0,
-        projectile_spread: Vec2::new(50.0, 50.0),
+        projectile_spread: Vec2::new(0.05, 0.05),
         projectile_count: 25,
         projectile_colour: Color::CYAN,
         muzzle_distance: 11.0,
@@ -443,14 +443,13 @@ fn shooting(
                 let shooter_position = position.value + velocity.value * current_time;
                 let shooter_angle = angle.value + angular_velocity.value * current_time;
                 let aim_direction = Vec2::from_angle(shooter_angle);
+                let projectile_origin = shooter_position + aim_direction * gun.muzzle_distance;
 
                 for _ in 0..gun.projectile_count {
                     // target_time - current_time is used a couple of times because the earlier the projectile was fired, the longer it has had for its properties to advance
                     let mut projectile_velocity = velocity.value + aim_direction * gun.projectile_speed +
-                        random_vec2_circle(&mut rng, 1.0) * gun.projectile_spread; // In here because of projectile-specific use of random
-                    let projectile_origin = shooter_position + aim_direction * gun.muzzle_distance;
-                    let projectile_position = projectile_origin
-                        + projectile_velocity * (target_time - current_time);
+                        random_vec2_circle(&mut rng, 1.0) * gun.projectile_spread * gun.projectile_speed; // In here because of projectile-specific use of random
+                    let projectile_position = projectile_origin + projectile_velocity * (target_time - current_time);
 
                     // Simulate a bit of speed reduction
                     let old_speed = projectile_velocity.length();

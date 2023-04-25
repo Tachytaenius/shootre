@@ -65,7 +65,7 @@ pub struct FlyingRecoveryRate {
 pub struct Gun {
     pub projectile_speed: f32,
     pub projectile_flying_recovery_rate: f32,
-    pub projectile_spread: Vec2, // TODO: Make this proportional to speed. Have the distribution circle rest on the muzzle as opposed to being centred on it?
+    pub projectile_spread: Vec2,
     pub projectile_count: u32,
     pub muzzle_distance: f32,
     pub projectile_colour: Color,

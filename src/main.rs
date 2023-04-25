@@ -160,7 +160,7 @@ fn spawn_dots (
     for _ in 0..1000 {
         commands.spawn((
             Position {
-                value: random_vec2_circle(&mut rng, 1000.0) + Vec2::new(300.0, 0.0)
+                value: random_vec2_circle(&mut rng, 1000.0) + Vec2::new(0.0, 0.0)
             },
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shape),

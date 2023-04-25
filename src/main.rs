@@ -8,8 +8,6 @@ use rand::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use components::*;
 
-const DEFAULT_FLYING_RECOVERY_RATE: f32 = 1000.0;
-
 fn proper_signum(x: f32) -> f32 {
     if x > 0.0 {
         return 1.0;
@@ -351,7 +349,7 @@ fn manage_flyers(
         if let Some(flying_recovery_rate) = flying_recovery_rate_option {
             speed_reduction = flying_recovery_rate.value;
         } else {
-            speed_reduction = DEFAULT_FLYING_RECOVERY_RATE;
+            speed_reduction = 0.0;
         }
         let new_speed = (old_speed - speed_reduction * time.delta_seconds()).max(0.0);
 

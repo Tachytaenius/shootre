@@ -80,6 +80,7 @@ fn spawn_player (
     };
     let _machine_gun = Gun {
         projectile_speed: 2000.0,
+        projectile_flying_recovery_rate: 250.0,
         projectile_spread: Vec2::new(10.0, 10.0),
         projectile_count: 1,
         projectile_colour: Color::CYAN,
@@ -91,6 +92,7 @@ fn spawn_player (
     };
     let shotgun = Gun {
         projectile_speed: 1750.0,
+        projectile_flying_recovery_rate: 500.0,
         projectile_spread: Vec2::new(50.0, 50.0),
         projectile_count: 25,
         projectile_colour: Color::CYAN,
@@ -445,11 +447,10 @@ fn shooting(
                     let projectile_position = projectile_origin
                         + projectile_velocity * (target_time - current_time);
 
-                    // Simulate a bit of flying recovery
+                    // Simulate a bit of speed reduction
                     let old_speed = projectile_velocity.length();
-                    let flying_recovery_rate = 500.0;
-                    let speed_reduction = flying_recovery_rate;
-                    let new_speed = (old_speed - speed_reduction * (target_time - current_time)).max(0.0);
+                    let flying_recovery_rate = gun.projectile_flying_recovery_rate;
+                    let new_speed = (old_speed - flying_recovery_rate * (target_time - current_time)).max(0.0);
                     if old_speed > 0.0 {
                         projectile_velocity = projectile_velocity.normalize() * new_speed;
                     }

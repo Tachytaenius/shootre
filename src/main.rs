@@ -272,7 +272,7 @@ fn turning (
         if keyboard_input.pressed(KeyCode::Period) {
             direction -= 1.0;
         }
-        
+
         let target_angular_velocity = direction * angular_gait.max_speed;
         angular_velocity.value = locomotion_handle_axis(
             angular_velocity.value,
@@ -427,7 +427,7 @@ fn shooting(
         } else {
             keyboard_input.just_pressed(KeyCode::Space)
         };
-        
+
         // The key point here is that for rapid-fire guns, gun.cooldown (and
         // by extension gun.cooldown_timer) may fit in target_time multiple times
         let mut current_time = 0.0;

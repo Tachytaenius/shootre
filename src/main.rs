@@ -366,7 +366,7 @@ fn manage_flyers(
             }
         }
 
-        if old_speed > 0.0 {
+        if old_speed > 0.0 && new_speed != old_speed {
             velocity.value = velocity.value.normalize() * new_speed;
         }
     }
@@ -455,7 +455,7 @@ fn shooting(
                     let old_speed = projectile_velocity.length();
                     let flying_recovery_rate = gun.projectile_flying_recovery_rate;
                     let new_speed = (old_speed - flying_recovery_rate * (target_time - current_time)).max(0.0);
-                    if old_speed > 0.0 {
+                    if old_speed > 0.0 && new_speed != old_speed {
                         projectile_velocity = projectile_velocity.normalize() * new_speed;
                     }
 

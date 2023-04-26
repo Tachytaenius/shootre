@@ -528,6 +528,7 @@ fn rebuild_traced_shape(
     mut tracer_query: Query<(Entity, &mut Stroke, Option<&SpawnedMidTick>, &ProjectileColour, &Position, &PreviousPosition), (With<Path>, With<TracedLine>)>,
     player_query: Query<(&Position, &Angle, &PreviousPosition, &PreviousAngle), With<Player>>
 ) {
+    // NOTE: It might be better if this was in terms of rotation and translation directly, and not using Transform objects.
     if let Ok((player_position, player_angle, player_previous_position, player_previous_angle)) = player_query.get_single() {
         for (entity, mut tracer_stroke, tracer_spawned_mid_tick_option, tracer_projectile_colour, tracer_position, tracer_previous_position) in tracer_query.iter_mut() {
             let previous_transform_lerp;

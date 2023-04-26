@@ -49,7 +49,7 @@ fn main() {
             walking.before(shooting),
             turning.before(shooting),
             shooting.before(apply_velocity).before(apply_angular_velocity),
-            apply_velocity,
+            apply_velocity.before(manage_flyers).before(tripping),
             apply_angular_velocity,
             manage_flyers,
             tripping,

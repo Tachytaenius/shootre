@@ -415,11 +415,25 @@ fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldow
 
 fn shooting(
     mut commands: Commands,
-    mut query: Query<(&mut Gun, &Velocity, &AngularVelocity, &Angle, &Position), With<Player>>, // TODO: Make velocities options
+    mut query: Query<(&mut Gun, Option<&Velocity>, Option<&AngularVelocity>, &Angle, &Position), With<Player>>,
     keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>
 ) {
-    if let Ok((mut gun, velocity, angular_velocity, angle, position)) = query.get_single_mut() {
+    if let Ok((mut gun, velocity_option, angular_velocity_option, angle, position)) = query.get_single_mut() {
+        let velocity_value;
+        if let Some(velocity) = velocity_option {
+            velocity_value = velocity.value;
+        } else {
+            velocity_value = Vec2::ZERO;
+        }
+
+        let angular_velocity_value;
+        if let Some(angular_velocity) = angular_velocity_option {
+            angular_velocity_value = angular_velocity.value;
+        } else {
+            angular_velocity_value = 0.0;
+        }
+
         let mut rng = rand::thread_rng();
 
         let mut shoot = if gun.auto {
@@ -440,14 +454,14 @@ fn shooting(
                     shoot = false;
                 }
 
-                let shooter_position = position.value + velocity.value * current_time;
-                let shooter_angle = angle.value + angular_velocity.value * current_time;
+                let shooter_position = position.value + velocity_value * current_time;
+                let shooter_angle = angle.value + angular_velocity_value * current_time;
                 let aim_direction = Vec2::from_angle(shooter_angle);
                 let projectile_origin = shooter_position + aim_direction * gun.muzzle_distance;
 
                 for _ in 0..gun.projectile_count {
                     // target_time - current_time is used a couple of times because the earlier the projectile was fired, the longer it has had for its properties to advance
-                    let mut projectile_velocity = velocity.value + aim_direction * gun.projectile_speed +
+                    let mut projectile_velocity = velocity_value + aim_direction * gun.projectile_speed +
                         random_vec2_circle(&mut rng, 1.0) * gun.projectile_spread * gun.projectile_speed; // In here because of projectile-specific use of random
                     let projectile_position = projectile_origin + projectile_velocity * (target_time - current_time);
 

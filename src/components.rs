@@ -87,3 +87,13 @@ pub struct ProjectileColour {
 pub struct SpawnedMidTick {
     pub when: f32 // From 0 to 1
 }
+
+#[derive(Component)]
+pub struct Collider {
+    pub radius: f32
+}
+
+#[derive(Component)]
+pub struct Mass {
+    pub value: f32
+}

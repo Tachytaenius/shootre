@@ -36,6 +36,7 @@ fn main() {
 
         .add_startup_system(spawn_camera)
         .add_startup_system(spawn_player)
+        .add_startup_system(spawn_other)
         .add_startup_system(spawn_dots)
 
         .add_systems((
@@ -46,8 +47,9 @@ fn main() {
         .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(MainSet))
 
         .add_systems((
-            walking.before(shooting),
+            walking.before(collision),
             turning.before(shooting),
+            collision.before(shooting),
             shooting.before(apply_velocity).before(apply_angular_velocity),
             apply_velocity.before(manage_flyers).before(tripping),
             apply_angular_velocity,
@@ -79,8 +81,9 @@ fn spawn_camera (mut commands: Commands) {
 fn spawn_player (
     mut commands: Commands
 ) {
+    let radius = 10.0;
     let shape = shapes::Circle {
-        radius: 10.0,
+        radius: radius,
         ..default()
     };
     let _machine_gun = Gun {
@@ -108,6 +111,67 @@ fn spawn_player (
         cooldown_timer: 0.0
     };
     let position = Vec2::ZERO;
+    let angle = 0.0;
+    commands.spawn((
+        ( // Nested to get around bundle size limit
+            Position {
+                value: position
+            },
+            PreviousPosition {
+                value: position
+            },
+            Velocity {
+                value: Vec2::ZERO
+            },
+            Gait {
+                max_speed: 200.0,
+                acceleration: 800.0,
+                stand_threshold: 210.0,
+                trip_threshold: 220.0
+            }
+        ),
+        (
+            Angle {
+                value: angle
+            },
+            PreviousAngle {
+                value: angle
+            },
+            AngularVelocity {
+                value: 0.0
+            },
+            AngularGait {
+                max_speed: TAU / 2.0,
+                acceleration: TAU * 8.0
+            },
+        ),
+        Player,
+        Collider {
+            radius: radius
+        },
+        Mass {
+            value: 100.0
+        },
+        Grounded,
+        shotgun,
+        ShapeBundle {
+            path: GeometryBuilder::build_as(&shape),
+            ..default()
+        },
+        Fill::color(Color::WHITE),
+        Stroke::new(Color::WHITE, 1.0)
+    ));
+}
+
+fn spawn_other (
+    mut commands: Commands
+) {
+    let radius = 10.0;
+    let shape = shapes::Circle {
+        radius: radius,
+        ..default()
+    };
+    let position = Vec2::new(100.0, 0.0);
     let angle = 0.0;
     commands.spawn((
         Position {
@@ -138,9 +202,13 @@ fn spawn_player (
             max_speed: TAU / 2.0,
             acceleration: TAU * 8.0
         },
-        Player,
+        Collider {
+            radius: radius
+        },
+        Mass {
+            value: 100.0
+        },
         Grounded,
-        shotgun,
         ShapeBundle {
             path: GeometryBuilder::build_as(&shape),
             ..default()
@@ -591,4 +659,68 @@ fn remove_spawned_mid_tick(
     for entity in query.iter() {
         commands.entity(entity).remove::<SpawnedMidTick>();
     }
+}
+
+fn circle_circle_collision_detection(a_radius: f32, a_position: Vec2, b_radius: f32, b_position: Vec2) -> bool {
+    return a_position.distance(b_position) <= a_radius + b_radius;
+}
+
+fn circle_circle_collision_resolution(a_position: Vec2, a_velocity: Vec2, a_mass: f32, b_position: Vec2, b_velocity: Vec2, b_mass: f32) -> (Vec2, Vec2) { // Returns new velocities
+    let direction = (a_position - b_position).normalize();
+    let velocity_difference = b_velocity - a_velocity;
+    let impact_speed = velocity_difference.dot(direction);
+    if impact_speed > 0.0 {
+        let speed_1 = (2.0 * b_mass * impact_speed) / (a_mass + b_mass);
+        let speed_2 = (impact_speed * (b_mass - a_mass)) / (a_mass + b_mass);
+        return (
+            a_velocity + direction * speed_1,
+            b_velocity + direction * (speed_2 - impact_speed)
+        );
+    }
+    return (a_velocity, b_velocity);
+}
+
+fn _circle_aabb_collision_detection(a_radius: f32, a_position: Vec2, b_width: f32, b_height: f32, b_position: Vec2) -> bool { // b_position is top left corner
+    let mut test = a_position;
+
+    if a_position.x < b_position.x {
+        test.x = b_position.x;
+    } else if a_position.x > b_position.x + b_width {
+        test.x = b_position.x + b_width;
+    }
+
+    if a_position.y < b_position.y {
+        test.y = b_position.y;
+    } else if a_position.y > b_position.y + b_height {
+        test.y = b_position.y + b_height;
+    }
+
+    return a_position.distance(test) <= a_radius;
+}
+
+fn collision(
+    mut query: Query<(&Collider, &Position, &mut Velocity, &Mass)>
+) {
+    let mut combinations = query.iter_combinations_mut();
+    while let Some([
+        (a_collider, a_position, mut a_velocity, a_mass),
+        (b_collider, b_position, mut b_velocity, b_mass)
+    ]) = combinations.fetch_next() {
+        if circle_circle_collision_detection(a_collider.radius, a_position.value, b_collider.radius, b_position.value) {
+            (a_velocity.value, b_velocity.value) = circle_circle_collision_resolution(
+                a_position.value, a_velocity.value, a_mass.value,
+                b_position.value, b_velocity.value, b_mass.value
+            );
+        }
+    }
+}
+
+fn _monitor_conservation(query: Query<(&Velocity, &Mass)>) {
+    let mut energy = 0.0;
+    let mut momentum = Vec2::ZERO;
+    for (velocity, mass) in query.iter() {
+        energy += mass.value / 2.0 * velocity.value.length_squared();
+        momentum += velocity.value * mass.value;
+    }
+    println!("Energy: {}, Momentum: {}", energy, momentum);
 }

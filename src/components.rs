@@ -97,3 +97,8 @@ pub struct Collider {
 pub struct Mass {
     pub value: f32
 }
+
+#[derive(Component)]
+pub struct Restitution {
+    pub value: f32
+}

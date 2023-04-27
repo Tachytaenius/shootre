@@ -136,6 +136,7 @@ fn spawn_player (
         Player,
         Collider {radius: radius},
         Mass {value: 100.0},
+        Restitution {value: 0.2},
         Grounded,
         shotgun,
         ShapeBundle {
@@ -176,6 +177,7 @@ fn spawn_other (
         },
         Collider {radius: radius},
         Mass {value: 100.0},
+        Restitution {value: 0.2},
         Grounded,
         ShapeBundle {
             path: GeometryBuilder::build_as(&shape),
@@ -617,16 +619,20 @@ fn circle_circle_collision_detection(a_radius: f32, a_position: Vec2, b_radius: 
     return a_position.distance(b_position) <= a_radius + b_radius;
 }
 
-fn circle_circle_collision_resolution(a_position: Vec2, a_velocity: Vec2, a_mass: f32, b_position: Vec2, b_velocity: Vec2, b_mass: f32) -> (Vec2, Vec2) { // Returns new velocities
+fn circle_circle_collision_resolution(
+    a_position: Vec2, a_velocity: Vec2, a_mass: f32, a_restitution: f32,
+    b_position: Vec2, b_velocity: Vec2, b_mass: f32, b_restitution: f32
+) -> (Vec2, Vec2) { // Returns new velocities
+    let restitution = a_restitution.min(b_restitution);
     let direction = (a_position - b_position).normalize();
     let velocity_difference = b_velocity - a_velocity;
     let impact_speed = velocity_difference.dot(direction);
     if impact_speed > 0.0 {
-        let speed_1 = (2.0 * b_mass * impact_speed) / (a_mass + b_mass);
-        let speed_2 = (impact_speed * (b_mass - a_mass)) / (a_mass + b_mass);
+        let speed_1 = ((restitution + 1.0) * b_mass * impact_speed) / (a_mass + b_mass);
+        let speed_2 = ((restitution + 1.0) * a_mass * impact_speed) / (a_mass + b_mass);
         return (
             a_velocity + direction * speed_1,
-            b_velocity + direction * (speed_2 - impact_speed)
+            b_velocity - direction * speed_2
         );
     }
     return (a_velocity, b_velocity);
@@ -651,17 +657,43 @@ fn _circle_aabb_collision_detection(a_radius: f32, a_position: Vec2, b_width: f3
 }
 
 fn collision(
-    mut query: Query<(&Collider, &Position, &mut Velocity, &Mass)>
+    mut query: Query<(&Collider, &Position, &mut Velocity, Option<&Mass>, Option<&Restitution>)>
 ) {
     let mut combinations = query.iter_combinations_mut();
     while let Some([
-        (a_collider, a_position, mut a_velocity, a_mass),
-        (b_collider, b_position, mut b_velocity, b_mass)
+        (a_collider, a_position, mut a_velocity, a_mass_option, a_restitution_option),
+        (b_collider, b_position, mut b_velocity, b_mass_option, b_restitution_option)
     ]) = combinations.fetch_next() {
         if circle_circle_collision_detection(a_collider.radius, a_position.value, b_collider.radius, b_position.value) {
+            let a_mass;
+            if let Some(a_mass_component) = a_mass_option {
+                a_mass = a_mass_component.value;
+            } else {
+                a_mass = 1.0;
+            }
+            let b_mass;
+            if let Some(b_mass_component) = b_mass_option {
+                b_mass = b_mass_component.value;
+            } else {
+                b_mass = 1.0;
+            }
+
+            let a_restitution;
+            if let Some(a_restitution_component) = a_restitution_option {
+                a_restitution = a_restitution_component.value;
+            } else {
+                a_restitution = 1.0;
+            }
+            let b_restitution;
+            if let Some(b_restitution_component) = b_restitution_option {
+                b_restitution = b_restitution_component.value;
+            } else {
+                b_restitution = 1.0;
+            }
+
             (a_velocity.value, b_velocity.value) = circle_circle_collision_resolution(
-                a_position.value, a_velocity.value, a_mass.value,
-                b_position.value, b_velocity.value, b_mass.value
+                 a_position.value, a_velocity.value, a_mass, a_restitution,
+                b_position.value, b_velocity.value, b_mass, b_restitution
             );
         }
     }

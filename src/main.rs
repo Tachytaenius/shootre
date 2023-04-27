@@ -432,6 +432,9 @@ fn fill_grounded(mut query: Query<(&mut Fill, &Stroke), Added<Grounded>>) {
     }
 }
 
+// TODO: Don't do duplicate gun cooldown! We need an inventory system with guns tracking depressed trigger etc themsevles
+// "Pull trigger" system involving holder entity in query -> gun system that handles cooldown etc and only uses holder entity to get where it's being shot from
+
 fn gun_cooldown(
     mut query: Query<&mut Gun>,
     time: Res<Time>

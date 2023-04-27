@@ -114,15 +114,9 @@ fn spawn_player (
     let angle = 0.0;
     commands.spawn((
         ( // Nested to get around bundle size limit
-            Position {
-                value: position
-            },
-            PreviousPosition {
-                value: position
-            },
-            Velocity {
-                value: Vec2::ZERO
-            },
+            Position {value: position},
+            PreviousPosition {value: position},
+            Velocity {value: Vec2::ZERO},
             Gait {
                 max_speed: 200.0,
                 acceleration: 800.0,
@@ -131,27 +125,17 @@ fn spawn_player (
             }
         ),
         (
-            Angle {
-                value: angle
-            },
-            PreviousAngle {
-                value: angle
-            },
-            AngularVelocity {
-                value: 0.0
-            },
+            Angle {value: angle},
+            PreviousAngle {value: angle},
+            AngularVelocity {value: 0.0},
             AngularGait {
                 max_speed: TAU / 2.0,
                 acceleration: TAU * 8.0
             },
         ),
         Player,
-        Collider {
-            radius: radius
-        },
-        Mass {
-            value: 100.0
-        },
+        Collider {radius: radius},
+        Mass {value: 100.0},
         Grounded,
         shotgun,
         ShapeBundle {
@@ -174,40 +158,24 @@ fn spawn_other (
     let position = Vec2::new(100.0, 0.0);
     let angle = 0.0;
     commands.spawn((
-        Position {
-            value: position
-        },
-        PreviousPosition {
-            value: position
-        },
-        Velocity {
-            value: Vec2::ZERO
-        },
+        Position {value: position},
+        PreviousPosition {value: position},
+        Velocity {value: Vec2::ZERO},
         Gait {
             max_speed: 200.0,
             acceleration: 800.0,
             stand_threshold: 210.0,
             trip_threshold: 220.0
         },
-        Angle {
-            value: angle
-        },
-        PreviousAngle {
-            value: angle
-        },
-        AngularVelocity {
-            value: 0.0
-        },
+        Angle {value: angle},
+        PreviousAngle {value: angle},
+        AngularVelocity {value: 0.0},
         AngularGait {
             max_speed: TAU / 2.0,
             acceleration: TAU * 8.0
         },
-        Collider {
-            radius: radius
-        },
-        Mass {
-            value: 100.0
-        },
+        Collider {radius: radius},
+        Mass {value: 100.0},
         Grounded,
         ShapeBundle {
             path: GeometryBuilder::build_as(&shape),
@@ -234,9 +202,7 @@ fn spawn_dots (
     let mut rng = rand::thread_rng();
     for _ in 0..1000 {
         commands.spawn((
-            Position {
-                value: random_vec2_circle(&mut rng, 1000.0)
-            },
+            Position {value: random_vec2_circle(&mut rng, 1000.0)},
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shape),
                 ..default()
@@ -542,30 +508,16 @@ fn shooting(
                     }
 
                     commands.spawn((
-                        Position {
-                            value: projectile_position
-                        },
-                        PreviousPosition {
-                            value: projectile_origin
-                        },
-                        Velocity {
-                            value: projectile_velocity
-                        },
-                        ShapeBundle {
-                            ..default()
-                        },
+                        Position {value: projectile_position},
+                        PreviousPosition {value: projectile_origin},
+                        Velocity {value: projectile_velocity},
+                        ShapeBundle {..default()},
                         Stroke::new(gun.projectile_colour, 1.0), // Gets immediately overwritten by a version with calculated alpha by rebuild_traced_shape
-                        ProjectileColour {
-                            value: gun.projectile_colour
-                        },
+                        ProjectileColour {value: gun.projectile_colour},
                         Flying,
-                        FlyingRecoveryRate {
-                            value: flying_recovery_rate
-                        },
+                        FlyingRecoveryRate {value: flying_recovery_rate},
                         TracedLine,
-                        SpawnedMidTick {
-                            when: current_time / target_time
-                        }
+                        SpawnedMidTick {when: current_time / target_time}
                     ));
                 }
             } else {

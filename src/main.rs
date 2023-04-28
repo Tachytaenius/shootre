@@ -28,8 +28,9 @@ fn main() {
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
     enum RenderPreparationSet {CommandFlush, Main}
 
-    App::new()
-        // TODO: Work out deterministic-but-still-parallelised system order
+    let mut app = App::new();
+
+    app // TODO: Work out deterministic-but-still-parallelised system order
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
@@ -67,9 +68,12 @@ fn main() {
             follow_player,
             update_transforms,
             rebuild_traced_shape
-        ).in_set(RenderPreparationSet::Main))
+        ).in_set(RenderPreparationSet::Main));
 
-        .run();
+        #[cfg(debug_assertions)]
+        app.add_system(check_consistent_state.after(MainSet).before(RenderPreparationSet::CommandFlush));
+
+        app.run();
 }
 
 fn spawn_camera (mut commands: Commands) {
@@ -799,4 +803,21 @@ fn _monitor_conservation(query: Query<(&Velocity, &Mass)>) {
         momentum += velocity.value * mass.value;
     }
     println!("Energy: {}, Momentum: {}", energy, momentum);
+}
+
+#[cfg(debug_assertions)]
+fn check_consistent_state(
+    query: Query<(
+        Option<&Grounded>,
+        Option<&Flying>
+    )>
+) {
+    for (grounded_option, flying_option) in query.iter() {
+        assert!(!(grounded_option.is_some() && flying_option.is_some()));
+        if let Some(grounded) = grounded_option {
+            if grounded.standing {
+                assert!(grounded.floored_recovery_timer.is_none());
+            }
+        }
+    }
 }

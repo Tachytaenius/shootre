@@ -70,7 +70,8 @@ fn main() {
             fill_grounded,
             follow_player,
             update_transforms,
-            rebuild_traced_shape
+            rebuild_traced_shape,
+            rebuild_collider_shape
         ).in_set(RenderPreparationSet::Main));
 
         #[cfg(debug_assertions)]
@@ -91,10 +92,6 @@ fn spawn_player(
     mut commands: Commands
 ) {
     let radius = 10.0;
-    let shape = shapes::Circle {
-        radius: radius,
-        ..default()
-    };
     let _machine_gun = Gun {
         projectile_speed: 2000.0,
         projectile_flying_recovery_rate: 250.0,
@@ -154,7 +151,7 @@ fn spawn_player(
         ),
         (
             ShapeBundle {
-                path: GeometryBuilder::build_as(&shape),
+                // Path is created by rebuild_collider_shape before rendering
                 ..default()
             },
             Fill::color(Color::WHITE),
@@ -176,11 +173,6 @@ fn spawn_player(
 fn spawn_other(
     mut commands: Commands
 ) {
-    let radius = 5.0;
-    let shape = shapes::Circle {
-        radius: radius,
-        ..default()
-    };
     let position = Vec2::new(100.0, 0.0);
     commands.spawn((
         (
@@ -188,14 +180,13 @@ fn spawn_other(
             Velocity {value: Vec2::ZERO}
         ),
         (
-            Collider {radius: radius},
+            Collider {radius: 5.0},
             Mass {value: 10.0},
             Restitution {value: 0.4},
             FloorFriction {value: 200.0}
         ),
         (
             ShapeBundle {
-                path: GeometryBuilder::build_as(&shape),
                 ..default()
             },
             Fill::color(Color::WHITE),
@@ -848,5 +839,18 @@ fn clear_wills(
             target_relative_velocity_multiplier: None,
             target_angular_velocity_multiplier: None
         });
+    }
+}
+
+fn rebuild_collider_shape(
+    mut commands: Commands,
+    query: Query<(Entity, &Collider), With<Path>>
+) {
+    for (entity, collider) in query.iter() {
+        let shape = shapes::Circle {
+            radius: collider.radius,
+            ..default()
+        };
+        commands.entity(entity).insert(GeometryBuilder::build_as(&shape));
     }
 }

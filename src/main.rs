@@ -130,6 +130,7 @@ fn spawn_player (
                 floored_acceleration: 400.0,
                 floored_recovery_time: 2.0
             },
+            FlyingRecoveryRate {value: 800.0},
             RegroundThreshold {value: 210.0},
             TripThreshold {value: 220.0}
         ),

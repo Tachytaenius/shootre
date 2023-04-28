@@ -445,7 +445,7 @@ fn manage_flyers(
                 }
                 commands.entity(entity).remove::<Flying>();
                 commands.entity(entity).insert(Grounded {
-                    standing: false,
+                    standing: false, // If ordering is as intended, a floored recovery time(r) of 0 should cause the entity to stand immediately
                     floored_recovery_timer: floored_recovery_time
                 });
             }

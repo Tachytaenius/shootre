@@ -95,3 +95,9 @@ pub struct Mass {pub value: f32}
 
 #[derive(Component)]
 pub struct Restitution {pub value: f32}
+
+#[derive(Component)]
+pub struct Will {
+    pub target_relative_velocity_multiplier: Option<Vec2>, // Should not lie outside the unit cirlce
+    pub target_angular_velocity_multiplier: Option<f32> // Should be -1 to 1
+}

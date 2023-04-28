@@ -43,11 +43,14 @@ fn main() {
         .add_systems((
             store_previous_position,
             store_previous_angle,
-            remove_spawned_mid_tick
+            remove_spawned_mid_tick,
+            clear_wills
         ).in_set(PreUpdateSet::Main).before(PreUpdateSet::CommandFlush))
         .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(MainSet))
 
         .add_systems((
+            player_input.before(walking).before(turning),
+            // ai.before(walking).before(turning),
             walking.before(collision),
             turning.before(shooting),
             collision.before(shooting),
@@ -84,7 +87,7 @@ fn spawn_camera (mut commands: Commands) {
     );
 }
 
-fn spawn_player (
+fn spawn_player(
     mut commands: Commands
 ) {
     let radius = 10.0;
@@ -158,6 +161,10 @@ fn spawn_player (
             Stroke::new(Color::WHITE, 1.0)
         ),
         Player,
+        Will {
+            target_relative_velocity_multiplier: None,
+            target_angular_velocity_multiplier: None
+        },
         Grounded {
             standing: true,
             floored_recovery_timer: None
@@ -166,7 +173,7 @@ fn spawn_player (
     ));
 }
 
-fn spawn_other (
+fn spawn_other(
     mut commands: Commands
 ) {
     let radius = 5.0;
@@ -207,7 +214,7 @@ fn random_vec2_circle(rng: &mut rand::rngs::ThreadRng, radius: f32) -> Vec2 {
     return Vec2::new(theta.cos() * r, theta.sin() * r);
 }
 
-fn spawn_dots (
+fn spawn_dots(
     mut commands: Commands
 ) {
     let shape = shapes::Circle {
@@ -236,41 +243,65 @@ fn locomotion_handle_axis(current: f32, target: f32, acceleration: f32, delta_se
     }
 }
 
-fn walking (
+fn player_input(
     mut query: Query<
         (
-            &mut Velocity,
-            &Gait,
-            Option<&Angle>,
-            Option<&Grounded>,
-            Option<&Levitates>
+            &mut Will,
+            Option<&Gait>,
+            Option<&AngularGait>
         ),
         With<Player>
     >,
-    keyboard_input: Res<Input<KeyCode>>,
-    time: Res<Time>
+    keyboard_input: Res<Input<KeyCode>>
 ) {
-    if let Ok((mut velocity, gait, angle_option, grounded_option, levitates_option)) = query.get_single_mut() {
-        if !(grounded_option.is_some() || levitates_option.is_some()) {
-            return; // Not grounded *or* levitating, can't walk
-            // TODO: Make this a continue when this function becomes a loop.
+    if let Ok((mut will, gait_option, angular_gait_option)) = query.get_single_mut() {
+        if gait_option.is_some() {
+            let mut target = Vec2::ZERO;
+            if keyboard_input.pressed(KeyCode::A) {
+                target.x -= 1.0;
+            }
+            if keyboard_input.pressed(KeyCode::D) {
+                target.x += 1.0;
+            }
+            if keyboard_input.pressed(KeyCode::W) {
+                target.y += 1.0;
+            }
+            if keyboard_input.pressed(KeyCode::S) {
+                target.y -= 1.0;
+            }
+            if target != Vec2::ZERO {
+                target = target.normalize();
+            }
+            will.target_relative_velocity_multiplier = Some(target);
         }
 
-        let mut relative_direction = Vec2::ZERO;
-        if keyboard_input.pressed(KeyCode::A) {
-            relative_direction.x -= 1.0;
+        if angular_gait_option.is_some() {
+            let mut target = 0.0;
+            if keyboard_input.pressed(KeyCode::Comma) {
+                target += 1.0;
+            }
+            if keyboard_input.pressed(KeyCode::Period) {
+                target -= 1.0;
+            }
+            will.target_angular_velocity_multiplier = Some(target);
         }
-        if keyboard_input.pressed(KeyCode::D) {
-            relative_direction.x += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::W) {
-            relative_direction.y += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::S) {
-            relative_direction.y -= 1.0;
-        }
-        if relative_direction != Vec2::ZERO {
-            relative_direction = relative_direction.normalize();
+    }
+}
+
+fn walking(
+    mut query: Query<(
+        &mut Velocity,
+        &Gait,
+        &Will,
+        Option<&Angle>,
+        Option<&Grounded>,
+        Option<&Levitates>
+    )>,
+    time: Res<Time>
+) {
+    for (mut velocity, gait, will, angle_option, grounded_option, levitates_option) in query.iter_mut() {
+        if !(grounded_option.is_some() || levitates_option.is_some()) {
+            continue; // Not grounded *or* levitating, can't walk
         }
 
         let max_speed;
@@ -290,7 +321,7 @@ fn walking (
             acceleration = gait.standing_acceleration;
         }
 
-        let target_relative_velocity = relative_direction * max_speed;
+        let target_relative_velocity = will.target_relative_velocity_multiplier.unwrap_or(Vec2::ZERO) * max_speed;
         let entity_angle;
         if let Some(angle) = angle_option {
             entity_angle = angle.value;
@@ -316,32 +347,22 @@ fn walking (
     }
 }
 
-fn turning (
+fn turning(
     mut query: Query<
         (
             &mut AngularVelocity,
-            &AngularGait
-        ), (
-            With<Player>,
-            Or<(
-                With<Grounded>,
-                With<Levitates>
-            )>
-        )
+            &AngularGait,
+            &Will
+        ),
+        Or<(
+            With<Grounded>,
+            With<Levitates>
+        )>
     >,
-    keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>
 ) {
-    if let Ok((mut angular_velocity, angular_gait)) = query.get_single_mut() {
-        let mut direction = 0.0;
-        if keyboard_input.pressed(KeyCode::Comma) {
-            direction += 1.0;
-        }
-        if keyboard_input.pressed(KeyCode::Period) {
-            direction -= 1.0;
-        }
-
-        let target_angular_velocity = direction * angular_gait.max_speed;
+    for (mut angular_velocity, angular_gait, will) in query.iter_mut() {
+        let target_angular_velocity = will.target_angular_velocity_multiplier.unwrap_or(0.0) * angular_gait.max_speed;
         angular_velocity.value = locomotion_handle_axis(
             angular_velocity.value,
             target_angular_velocity,
@@ -351,7 +372,7 @@ fn turning (
     }
 }
 
-fn apply_velocity (
+fn apply_velocity(
     mut query: Query<(&mut Position, &Velocity)>,
     time: Res<Time>
 ) {
@@ -360,7 +381,7 @@ fn apply_velocity (
     }
 }
 
-fn apply_angular_velocity (
+fn apply_angular_velocity(
     mut query: Query<(&mut Angle, &AngularVelocity)>,
     time: Res<Time>
 ) {
@@ -369,7 +390,7 @@ fn apply_angular_velocity (
     }
 }
 
-fn follow_player (
+fn follow_player(
     mut camera_query: Query<&mut Transform, With<Camera>>,
     player_query: Query<(&Position, Option<&Angle>), With<Player>>
 ) {
@@ -388,7 +409,7 @@ fn follow_player (
     }
 }
 
-fn update_transforms (mut query: Query<(&mut Transform, &Position)>) {
+fn update_transforms(mut query: Query<(&mut Transform, &Position)>) {
     for (mut transform, position) in query.iter_mut() {
         transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
     }
@@ -452,7 +473,7 @@ fn manage_flyers(
     }
 }
 
-fn manage_flooreds (
+fn manage_flooreds(
     mut query: Query<&mut Grounded>,
     time: Res<Time>
 ) {
@@ -469,7 +490,7 @@ fn manage_flooreds (
     }
 }
 
-fn floor_friction (
+fn floor_friction(
     mut query: Query<(&Grounded, Option<&FloorFriction>, &mut Velocity)>,
     time: Res<Time>
 ) {
@@ -814,5 +835,18 @@ fn check_consistent_state(
                 assert!(grounded.floored_recovery_timer.is_none());
             }
         }
+    }
+}
+
+fn clear_wills(
+    mut commands: Commands,
+    query: Query<Entity, With<Will>>
+) {
+    for entity in query.iter() {
+        commands.entity(entity).remove::<Will>();
+        commands.entity(entity).insert(Will {
+            target_relative_velocity_multiplier: None,
+            target_angular_velocity_multiplier: None
+        });
     }
 }

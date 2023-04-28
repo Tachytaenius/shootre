@@ -232,47 +232,36 @@ fn locomotion_handle_axis(current: f32, target: f32, acceleration: f32, delta_se
 }
 
 fn player_input(
-    mut query: Query<
-        (
-            &mut Will,
-            Option<&Gait>,
-            Option<&AngularGait>
-        ),
-        With<Player>
-    >,
+    mut query: Query<&mut Will, With<Player>>,
     keyboard_input: Res<Input<KeyCode>>
 ) {
-    if let Ok((mut will, gait_option, angular_gait_option)) = query.get_single_mut() {
-        if gait_option.is_some() {
-            let mut target = Vec2::ZERO;
-            if keyboard_input.pressed(KeyCode::A) {
-                target.x -= 1.0;
-            }
-            if keyboard_input.pressed(KeyCode::D) {
-                target.x += 1.0;
-            }
-            if keyboard_input.pressed(KeyCode::W) {
-                target.y += 1.0;
-            }
-            if keyboard_input.pressed(KeyCode::S) {
-                target.y -= 1.0;
-            }
-            if target != Vec2::ZERO {
-                target = target.normalize();
-            }
-            will.target_relative_velocity_multiplier = Some(target);
+    if let Ok(mut will) = query.get_single_mut() {
+        let mut target = Vec2::ZERO;
+        if keyboard_input.pressed(KeyCode::A) {
+            target.x -= 1.0;
         }
+        if keyboard_input.pressed(KeyCode::D) {
+            target.x += 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::W) {
+            target.y += 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::S) {
+            target.y -= 1.0;
+        }
+        if target != Vec2::ZERO {
+            target = target.normalize();
+        }
+        will.target_relative_velocity_multiplier = Some(target);
 
-        if angular_gait_option.is_some() {
-            let mut target = 0.0;
-            if keyboard_input.pressed(KeyCode::Comma) {
-                target += 1.0;
-            }
-            if keyboard_input.pressed(KeyCode::Period) {
-                target -= 1.0;
-            }
-            will.target_angular_velocity_multiplier = Some(target);
+        let mut target = 0.0;
+        if keyboard_input.pressed(KeyCode::Comma) {
+            target += 1.0;
         }
+        if keyboard_input.pressed(KeyCode::Period) {
+            target -= 1.0;
+        }
+        will.target_angular_velocity_multiplier = Some(target);
     }
 }
 

@@ -533,7 +533,7 @@ fn gun_cooldown(
 
 fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldown: &mut f32) {
     // Move current up towards target but "stop" if cooldown ticks down towards 0 before then
-    assert!(*current < target); // Not <= because we shouldn't be progressing time if we've already reached the target
+    debug_assert!(*current < target); // Not <= because we shouldn't be progressing time if we've already reached the target
     let delta = (target - *current).min(*cooldown);
     *current += delta;
     *cooldown -= delta;

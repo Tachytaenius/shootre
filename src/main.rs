@@ -158,10 +158,7 @@ fn spawn_player(
             Stroke::new(Color::WHITE, 1.0)
         ),
         Player,
-        Will {
-            target_relative_velocity_multiplier: None,
-            target_angular_velocity_multiplier: None
-        },
+        Will {..default()},
         Grounded {
             standing: true,
             floored_recovery_timer: None
@@ -835,10 +832,7 @@ fn clear_wills(
 ) {
     for entity in query.iter() {
         commands.entity(entity).remove::<Will>();
-        commands.entity(entity).insert(Will {
-            target_relative_velocity_multiplier: None,
-            target_angular_velocity_multiplier: None
-        });
+        commands.entity(entity).insert(Will {..default()});
     }
 }
 

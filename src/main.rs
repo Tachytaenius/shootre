@@ -130,10 +130,8 @@ fn spawn_player (
                 floored_acceleration: 400.0,
                 floored_recovery_time: 2.0
             },
-            FlyingThresholds {
-                reground_threshold: 210.0,
-                trip_threshold: 220.0,
-            }
+            RegroundThreshold {value: 210.0},
+            TripThreshold {value: 220.0}
         ),
         (
             Angle {value: angle},
@@ -179,11 +177,7 @@ fn spawn_other (
     commands.spawn((
         (
             Position {value: position},
-            Velocity {value: Vec2::ZERO},
-            FlyingThresholds {
-                reground_threshold: 100.0,
-                trip_threshold: 110.0,
-            }
+            Velocity {value: Vec2::ZERO}
         ),
         (
             Collider {radius: radius},
@@ -407,7 +401,7 @@ fn manage_flyers(
         Option<&FlyingRecoveryRate>,
         Option<&Levitates>,
         Option<&Gait>,
-        Option<&FlyingThresholds>
+        Option<&RegroundThreshold>
     ), With<Flying>>,
     time: Res<Time>
 ) {
@@ -417,7 +411,7 @@ fn manage_flyers(
         flying_recovery_rate_option,
         levitates_option,
         gait_option,
-        flying_thresholds_option
+        reground_threshold_option
     ) in query.iter_mut() {
         let old_speed = velocity.value.length();
         let speed_reduction;
@@ -435,8 +429,8 @@ fn manage_flyers(
         if let None = levitates_option {
             // Manage stopping flying
             let stop_flying_threshold;
-            if let Some(flying_thresholds) = flying_thresholds_option {
-                stop_flying_threshold = flying_thresholds.reground_threshold;
+            if let Some(reground_threshold) = reground_threshold_option {
+                stop_flying_threshold = reground_threshold.value;
             } else {
                 stop_flying_threshold = DEFAULT_REGROUND_THRESHOLD;
             }
@@ -497,12 +491,12 @@ fn floor_friction (
 
 fn tripping(
     mut commands: Commands,
-    query: Query<(Entity, Option<&FlyingThresholds>, &Velocity), With<Grounded>>
+    query: Query<(Entity, Option<&TripThreshold>, &Velocity), With<Grounded>>
 ) {
-    for (entity, flying_thresholds_option, velocity) in query.iter() {
+    for (entity, trip_threshold_option, velocity) in query.iter() {
         let trip_threshold;
-        if let Some(flying_thresholds) = flying_thresholds_option {
-            trip_threshold = flying_thresholds.trip_threshold;
+        if let Some(trip_threshold_component) = trip_threshold_option {
+            trip_threshold = trip_threshold_component.value;
         } else {
             trip_threshold = DEFAULT_TRIP_THRESHOLD;
         }

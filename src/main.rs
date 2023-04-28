@@ -53,7 +53,9 @@ fn main() {
             shooting.before(apply_velocity).before(apply_angular_velocity),
             apply_velocity.before(manage_flyers).before(tripping),
             apply_angular_velocity,
-            manage_flyers,
+            manage_flyers.before(manage_flooreds),
+            manage_flooreds.before(floor_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
+            floor_friction.before(tripping),
             tripping,
             gun_cooldown
         ).in_set(MainSet).before(RenderPreparationSet::CommandFlush))
@@ -120,8 +122,11 @@ fn spawn_player (
             Gait {
                 max_speed: 200.0,
                 acceleration: 800.0,
-                stand_threshold: 210.0,
-                trip_threshold: 220.0
+                floored_recovery_time: 2.0
+            },
+            FlyingThresholds {
+                reground_threshold: 210.0,
+                trip_threshold: 220.0,
             }
         ),
         (
@@ -133,58 +138,65 @@ fn spawn_player (
                 acceleration: TAU * 8.0
             },
         ),
+        (
+            Collider {radius: radius},
+            Mass {value: 100.0},
+            Restitution {value: 0.2},
+            FloorFriction {value: 2000.0}
+        ),
+        (
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                ..default()
+            },
+            Fill::color(Color::WHITE),
+            Stroke::new(Color::WHITE, 1.0)
+        ),
         Player,
-        Collider {radius: radius},
-        Mass {value: 100.0},
-        Restitution {value: 0.2},
-        Grounded,
-        shotgun,
-        ShapeBundle {
-            path: GeometryBuilder::build_as(&shape),
-            ..default()
+        Grounded {
+            standing: true,
+            floored_recovery_timer: None
         },
-        Fill::color(Color::WHITE),
-        Stroke::new(Color::WHITE, 1.0)
+        shotgun
     ));
 }
 
 fn spawn_other (
     mut commands: Commands
 ) {
-    let radius = 10.0;
+    let radius = 5.0;
     let shape = shapes::Circle {
         radius: radius,
         ..default()
     };
     let position = Vec2::new(100.0, 0.0);
-    let angle = 0.0;
     commands.spawn((
-        Position {value: position},
-        PreviousPosition {value: position},
-        Velocity {value: Vec2::ZERO},
-        Gait {
-            max_speed: 200.0,
-            acceleration: 800.0,
-            stand_threshold: 210.0,
-            trip_threshold: 220.0
-        },
-        Angle {value: angle},
-        PreviousAngle {value: angle},
-        AngularVelocity {value: 0.0},
-        AngularGait {
-            max_speed: TAU / 2.0,
-            acceleration: TAU * 8.0
-        },
-        Collider {radius: radius},
-        Mass {value: 100.0},
-        Restitution {value: 0.2},
-        Grounded,
-        ShapeBundle {
-            path: GeometryBuilder::build_as(&shape),
-            ..default()
-        },
-        Fill::color(Color::WHITE),
-        Stroke::new(Color::WHITE, 1.0)
+        (
+            Position {value: position},
+            Velocity {value: Vec2::ZERO},
+            FlyingThresholds {
+                reground_threshold: 100.0,
+                trip_threshold: 110.0,
+            }
+        ),
+        (
+            Collider {radius: radius},
+            Mass {value: 10.0},
+            Restitution {value: 0.4},
+            FloorFriction {value: 200.0}
+        ),
+        (
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                ..default()
+            },
+            Fill::color(Color::WHITE),
+            Stroke::new(Color::WHITE, 1.0)
+        ),
+        Grounded {
+            standing: false,
+            floored_recovery_timer: None
+        }
     ));
 }
 
@@ -369,7 +381,8 @@ fn manage_flyers(
         &mut Velocity,
         Option<&FlyingRecoveryRate>,
         Option<&Levitates>,
-        Option<&Gait>
+        Option<&Gait>,
+        Option<&FlyingThresholds>
     ), With<Flying>>,
     time: Res<Time>
 ) {
@@ -378,42 +391,97 @@ fn manage_flyers(
         mut velocity,
         flying_recovery_rate_option,
         levitates_option,
-        gait_option
+        gait_option,
+        flying_thresholds_option
     ) in query.iter_mut() {
         let old_speed = velocity.value.length();
         let speed_reduction;
         if let Some(flying_recovery_rate) = flying_recovery_rate_option {
             speed_reduction = flying_recovery_rate.value;
         } else {
-            speed_reduction = 0.0;
+            speed_reduction = DEFAULT_FLYING_RECOVERY_RATE;
         }
         let new_speed = (old_speed - speed_reduction * time.delta_seconds()).max(0.0);
 
-        if let None = levitates_option {
-            let stop_flying_threshold;
-            if let Some(gait) = gait_option {
-                stop_flying_threshold = gait.stand_threshold;
-            } else {
-                stop_flying_threshold = 0.0;
-            }
-            if new_speed <= stop_flying_threshold {
-                commands.entity(entity).remove::<Flying>();
-                commands.entity(entity).insert(Grounded);
-            }
-        }
-
         if old_speed > 0.0 && new_speed != old_speed {
             velocity.value = velocity.value.normalize() * new_speed;
+        }
+
+        if let None = levitates_option {
+            // Manage stopping flying
+            let stop_flying_threshold;
+            if let Some(flying_thresholds) = flying_thresholds_option {
+                stop_flying_threshold = flying_thresholds.reground_threshold;
+            } else {
+                stop_flying_threshold = DEFAULT_REGROUND_THRESHOLD;
+            }
+            if new_speed <= stop_flying_threshold {
+                let floored_recovery_time;
+                if let Some(gait) = gait_option {
+                    floored_recovery_time = Some(gait.floored_recovery_time);
+                } else {
+                    floored_recovery_time = None;
+                }
+                commands.entity(entity).remove::<Flying>();
+                commands.entity(entity).insert(Grounded {
+                    standing: false,
+                    floored_recovery_timer: floored_recovery_time
+                });
+            }
+        }
+    }
+}
+
+fn manage_flooreds (
+    mut query: Query<&mut Grounded>,
+    time: Res<Time>
+) {
+    for mut grounded in query.iter_mut() {
+        if let Some(old_timer_state) = grounded.floored_recovery_timer {
+            let new_timer_state = (old_timer_state - time.delta_seconds()).max(0.0);
+            if new_timer_state > 0.0 {
+                grounded.floored_recovery_timer = Some(new_timer_state);
+            } else {
+                grounded.floored_recovery_timer = None;
+                grounded.standing = true;
+            }
+        }
+    }
+}
+
+fn floor_friction (
+    mut query: Query<(&Grounded, Option<&FloorFriction>, &mut Velocity)>,
+    time: Res<Time>
+) {
+    for (grounded, floor_friction_option, mut velocity) in query.iter_mut() {
+        if !grounded.standing {
+            let friction;
+            if let Some(floor_friction) = floor_friction_option {
+                friction = floor_friction.value;
+            } else {
+                friction = DEFAULT_FLOOR_FRICTION;
+            }
+            let old_speed = velocity.value.length();
+            let new_speed = (old_speed - friction * time.delta_seconds()).max(0.0);
+            if old_speed > 0.0 {
+                velocity.value = velocity.value.normalize() * new_speed;
+            }
         }
     }
 }
 
 fn tripping(
     mut commands: Commands,
-    query: Query<(Entity, &Gait, &Velocity), With<Grounded>>
+    query: Query<(Entity, Option<&FlyingThresholds>, &Velocity), With<Grounded>>
 ) {
-    for (entity, gait, velocity) in query.iter() {
-        if velocity.value.length() > gait.trip_threshold {
+    for (entity, flying_thresholds_option, velocity) in query.iter() {
+        let trip_threshold;
+        if let Some(flying_thresholds) = flying_thresholds_option {
+            trip_threshold = flying_thresholds.trip_threshold;
+        } else {
+            trip_threshold = DEFAULT_TRIP_THRESHOLD;
+        }
+        if velocity.value.length() > trip_threshold {
             commands.entity(entity).remove::<Grounded>();
             commands.entity(entity).insert(Flying);
         }

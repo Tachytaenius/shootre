@@ -484,7 +484,7 @@ fn floor_friction (
             }
             let old_speed = velocity.value.length();
             let new_speed = (old_speed - friction * time.delta_seconds()).max(0.0);
-            if old_speed > 0.0 {
+            if old_speed > 0.0 && new_speed != old_speed {
                 velocity.value = velocity.value.normalize() * new_speed;
             }
         }

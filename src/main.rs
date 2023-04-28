@@ -120,8 +120,10 @@ fn spawn_player (
             PreviousPosition {value: position},
             Velocity {value: Vec2::ZERO},
             Gait {
-                max_speed: 200.0,
-                acceleration: 800.0,
+                standing_max_speed: 200.0,
+                standing_acceleration: 800.0,
+                floored_max_speed: 100.0,
+                floored_acceleration: 400.0,
                 floored_recovery_time: 2.0
             },
             FlyingThresholds {
@@ -142,7 +144,7 @@ fn spawn_player (
             Collider {radius: radius},
             Mass {value: 100.0},
             Restitution {value: 0.2},
-            FloorFriction {value: 2000.0}
+            FloorFriction {value: 300.0}
         ),
         (
             ShapeBundle {
@@ -240,19 +242,21 @@ fn walking (
         (
             &mut Velocity,
             &Gait,
-            Option<&Angle>
-        ), (
-            With<Player>,
-            Or<(
-                With<Grounded>,
-                With<Levitates> // Levitators don't need to be grounded to move
-            )>
-        )
+            Option<&Angle>,
+            Option<&Grounded>,
+            Option<&Levitates>
+        ),
+        With<Player>
     >,
     keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time>
 ) {
-    if let Ok((mut velocity, gait, angle_option)) = query.get_single_mut() {
+    if let Ok((mut velocity, gait, angle_option, grounded_option, levitates_option)) = query.get_single_mut() {
+        if !(grounded_option.is_some() || levitates_option.is_some()) {
+            return; // Not grounded *or* levitating, can't walk
+            // TODO: Make this a continue when this function becomes a loop.
+        }
+
         let mut relative_direction = Vec2::ZERO;
         if keyboard_input.pressed(KeyCode::A) {
             relative_direction.x -= 1.0;
@@ -270,7 +274,24 @@ fn walking (
             relative_direction = relative_direction.normalize();
         }
 
-        let target_relative_velocity = relative_direction * gait.max_speed;
+        let max_speed;
+        let acceleration;
+        if let None = levitates_option {
+            // Grounded is definitely some
+            let grounded = grounded_option.unwrap();
+            if grounded.standing {
+                max_speed = gait.standing_max_speed;
+                acceleration = gait.standing_acceleration;
+            } else {
+                max_speed = gait.floored_max_speed;
+                acceleration = gait.floored_acceleration;
+            }
+        } else {
+            max_speed = gait.standing_max_speed;
+            acceleration = gait.standing_acceleration;
+        }
+
+        let target_relative_velocity = relative_direction * max_speed;
         let entity_angle;
         if let Some(angle) = angle_option {
             entity_angle = angle.value;
@@ -287,7 +308,7 @@ fn walking (
         } else {
             direction = difference.normalize();
         }
-        let acceleration_distribution = direction * gait.acceleration; // So that you don't get to use all of acceleration on both axes
+        let acceleration_distribution = direction * acceleration; // So that you don't get to use all of acceleration on both axes
 
         relative_velocity.x = locomotion_handle_axis(relative_velocity.x, target_relative_velocity.x, acceleration_distribution.x, time.delta_seconds());
         relative_velocity.y = locomotion_handle_axis(relative_velocity.y, target_relative_velocity.y, acceleration_distribution.y, time.delta_seconds());

@@ -17,8 +17,10 @@ pub struct Velocity {
 
 #[derive(Component)]
 pub struct Gait {
-    pub max_speed: f32,
-    pub acceleration: f32,
+    pub standing_max_speed: f32, // Levitators always use standing speed
+    pub standing_acceleration: f32,
+    pub floored_max_speed: f32,
+    pub floored_acceleration: f32,
     pub floored_recovery_time: f32 // How long in seconds from being floored (just recovered from flying, etc) to standing again
 }
 
@@ -60,7 +62,7 @@ pub struct Grounded { // Not flying
     pub floored_recovery_timer: Option<f32> // When this reaches 0, stand
 }
 
-pub const DEFAULT_FLOOR_FRICTION: f32 = 500.0; // For when the component is not present
+pub const DEFAULT_FLOOR_FRICTION: f32 = 200.0; // For when the component is not present
 #[derive(Component)]
 pub struct FloorFriction {
     pub value: f32 // How much speed to remove per second when floored

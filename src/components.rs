@@ -1,19 +1,13 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub struct Position {
-    pub value: Vec2
-}
+pub struct Position {pub value: Vec2}
 
 #[derive(Component)]
-pub struct PreviousPosition {
-    pub value: Vec2
-}
+pub struct PreviousPosition {pub value: Vec2}
 
 #[derive(Component)]
-pub struct Velocity {
-    pub value: Vec2
-}
+pub struct Velocity {pub value: Vec2}
 
 #[derive(Component)]
 pub struct Gait {
@@ -26,30 +20,20 @@ pub struct Gait {
 
 pub const DEFAULT_REGROUND_THRESHOLD: f32 = 110.0;
 #[derive(Component)]
-pub struct RegroundThreshold {
-    pub value: f32 // Flying to grounded under or at this speed
-}
+pub struct RegroundThreshold {pub value: f32} // Flying to grounded under or at this speed
 
 pub const DEFAULT_TRIP_THRESHOLD: f32 = 120.0;
 #[derive(Component)]
-pub struct TripThreshold {
-    pub value: f32 // Grounded to flying over this speed
-}
+pub struct TripThreshold {pub value: f32} // Grounded to flying over this speed
 
 #[derive(Component)]
-pub struct PreviousAngle {
-    pub value: f32
-}
+pub struct PreviousAngle {pub value: f32}
 
 #[derive(Component)]
-pub struct Angle {
-    pub value: f32
-}
+pub struct Angle {pub value: f32}
 
 #[derive(Component)]
-pub struct AngularVelocity {
-    pub value: f32
-}
+pub struct AngularVelocity {pub value: f32}
 
 #[derive(Component)]
 pub struct AngularGait {
@@ -68,9 +52,7 @@ pub struct Grounded { // Not flying
 
 pub const DEFAULT_FLOOR_FRICTION: f32 = 200.0;
 #[derive(Component)]
-pub struct FloorFriction {
-    pub value: f32 // How much speed to remove per second when floored
-}
+pub struct FloorFriction {pub value: f32} // How much speed to remove per second when floored
 
 #[derive(Component)]
 pub struct Flying; // Not grounded
@@ -80,9 +62,7 @@ pub struct Levitates;
 
 pub const DEFAULT_FLYING_RECOVERY_RATE: f32 = 1000.0;
 #[derive(Component)]
-pub struct FlyingRecoveryRate {
-    pub value: f32
-}
+pub struct FlyingRecoveryRate {pub value: f32}
 
 #[derive(Component)]
 pub struct Gun {
@@ -102,26 +82,16 @@ pub struct Gun {
 pub struct TracedLine;
 
 #[derive(Component)]
-pub struct ProjectileColour {
-    pub value: Color
-}
+pub struct ProjectileColour {pub value: Color}
 
 #[derive(Component)]
-pub struct SpawnedMidTick {
-    pub when: f32 // From 0 to 1
-}
+pub struct SpawnedMidTick {pub when: f32} // From 0 to 1
 
 #[derive(Component)]
-pub struct Collider {
-    pub radius: f32
-}
+pub struct Collider {pub radius: f32}
 
 #[derive(Component)]
-pub struct Mass {
-    pub value: f32
-}
+pub struct Mass {pub value: f32}
 
 #[derive(Component)]
-pub struct Restitution {
-    pub value: f32
-}
+pub struct Restitution {pub value: f32}

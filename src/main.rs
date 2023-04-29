@@ -1006,7 +1006,7 @@ fn dropping(
                         }
                     }
                     if let Ok(angle) = angle_query.get(parent_entity) {
-                        child_commands.insert(Angle {value: angle.value});
+                        child_commands.insert(Angle {value: angle.value + held_angle}); // TODO: Test that it is indeed parent_angle + held_angle
                     }
                     if let Ok(angular_velocity) = angular_velocity_query.get(parent_entity) {
                         child_commands.insert(AngularVelocity {value: angular_velocity.value});

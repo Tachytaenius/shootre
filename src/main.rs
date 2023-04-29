@@ -52,8 +52,10 @@ fn main() {
         .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(MainSet))
 
         .add_systems((
-            player_input.before(walking).before(turning),
-            // ai.before(walking).before(turning),
+            player_input.before(dropping),
+            // ai.before(dropping),
+            dropping.before(picking_up),
+            picking_up.before(turning).before(walking),
             walking.before(collision),
             turning.before(shooting),
             collision.before(shooting),
@@ -98,7 +100,6 @@ fn spawn_camera (mut commands: Commands) {
 fn spawn_player(
     mut commands: Commands
 ) {
-    let radius = 10.0;
     let _machine_gun = Gun {
         projectile_speed: 2000.0,
         projectile_flying_recovery_rate: 250.0,
@@ -125,7 +126,7 @@ fn spawn_player(
     };
     let position = Vec2::ZERO;
     let angle = 0.0;
-    commands.spawn((
+    let player = commands.spawn((
         ( // Nested to get around bundle size limit
             Position {value: position},
             PreviousPosition {value: position},
@@ -151,7 +152,10 @@ fn spawn_player(
             },
         ),
         (
-            Collider {radius: radius},
+            Collider {
+                radius: 10.0,
+                solid: true
+            },
             Mass {value: 100.0},
             Restitution {value: 0.2},
             FloorFriction {value: 300.0}
@@ -170,7 +174,8 @@ fn spawn_player(
             standing: true,
             floored_recovery_timer: None
         },
-        shotgun
+        shotgun,
+        Holder {pick_up_range: 20.0}
     ));
 }
 
@@ -184,7 +189,10 @@ fn spawn_other(
             Velocity {value: Vec2::ZERO}
         ),
         (
-            Collider {radius: 5.0},
+            Collider {
+                radius: 5.0,
+                solid: false
+            },
             Mass {value: 10.0},
             Restitution {value: 0.4},
             FloorFriction {value: 200.0}
@@ -199,7 +207,8 @@ fn spawn_other(
         Grounded {
             standing: false,
             floored_recovery_timer: None
-        }
+        },
+        Holdable
     ));
 }
 
@@ -269,6 +278,9 @@ fn player_input(
             target -= 1.0;
         }
         will.target_angular_velocity_multiplier = Some(target);
+
+        will.drop = keyboard_input.just_pressed(KeyCode::Q);
+        will.pick_up = keyboard_input.just_pressed(KeyCode::F);
     }
 }
 
@@ -393,9 +405,22 @@ fn follow_player(
     }
 }
 
-fn update_transforms(mut query: Query<(&mut Transform, &Position)>) {
-    for (mut transform, position) in query.iter_mut() {
-        transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
+fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&ParentRelationship>)>) {
+    for (mut transform, position_option, angle_option, parent_option, parent_relationship_option) in query.iter_mut() {
+        if let Some(_) = parent_option {
+            if let ParentRelationship::Holder {held_distance, ..} = *parent_relationship_option.unwrap() {
+                transform.translation = Vec3::new(held_distance, 0.0, 0.0);
+            }
+        } else if let Some(position) = position_option {
+            let angle;
+            if let Some(angle_component) = angle_option {
+                angle = angle_component.value;
+            } else {
+                angle = 0.0;
+            }
+            transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
+            transform.rotation = Quat::from_rotation_z(angle);
+        }
     }
 }
 
@@ -760,6 +785,9 @@ fn collision(
         (a_collider, a_position, mut a_velocity, a_mass_option, a_restitution_option),
         (b_collider, b_position, mut b_velocity, b_mass_option, b_restitution_option)
     ]) = combinations.fetch_next() {
+        if !(a_collider.solid && b_collider.solid) {
+            continue;
+        }
         if circle_circle_collision_detection(a_collider.radius, a_position.value, b_collider.radius, b_position.value) {
             let a_mass;
             if let Some(a_mass_component) = a_mass_option {
@@ -822,15 +850,49 @@ fn check_consistent_grounded_flying_state(
 }
 
 fn check_consistent_hierarchy_state(
-    child_query: Query<Entity, With<Parent>>,
-    child_type_query: Query<Entity, With<ParentRelationshipType>>
+    child_query: Query<(Entity, &Parent)>,
+    holder_query: Query<&Holder>,
+    holdable_query: Query<&Holdable>,
+    child_type_query: Query<(Entity, &ParentRelationship)>,
+    position_query: Query<&Position>,
+    velocity_query: Query<&Velocity>,
+    angle_query: Query<&Angle>,
+    angular_velocity_query: Query<&AngularVelocity>,
+    grounded_query: Query<&Grounded>,
+    flying_query: Query<&Flying>,
+    parents_with_children_query: Query<(With<Parent>, With<Children>)>
 ) {
-    // Check that the set of all entities with Parent and the set of all entities with ParentRelationshipType is the same
-    for child_entity in child_query.iter() {
+    // Check that the set of all entities with Parent and the set of all entities with ParentRelationship is the same
+    // Check that no children have spatial information components
+    // Check that all held entities have Holdable and that their holders have Holder
+    // Check that there are no entities with a parent and children (proper chains of entities would be a huge challenge)
+
+    for (child_entity, parent) in child_query.iter() {
         assert!(child_type_query.contains(child_entity));
+
+        assert!(!position_query.contains(child_entity));
+        assert!(!velocity_query.contains(child_entity));
+        assert!(!angle_query.contains(child_entity));
+        assert!(!angular_velocity_query.contains(child_entity));
+        assert!(!grounded_query.contains(child_entity));
+        assert!(!flying_query.contains(child_entity));
+
+        let (_, parent_relationship_type) = child_type_query.get(child_entity).unwrap();
+        match parent_relationship_type {
+            ParentRelationship::Holder {..} => {
+                assert!(holdable_query.contains(child_entity));
+                assert!(holder_query.contains(parent.get()));
+            },
+            _ => {}
+        }
     }
-    for child_type_entity in child_type_query.iter() {
+
+    for (child_type_entity, _) in child_type_query.iter() {
         assert!(child_query.contains(child_type_entity));
+    }
+
+    if !parents_with_children_query.is_empty() {
+        panic!();
     }
 }
 
@@ -854,5 +916,108 @@ fn rebuild_collider_shape(
             ..default()
         };
         commands.entity(entity).insert(GeometryBuilder::build_as(&shape));
+    }
+}
+
+fn dropping(
+    mut commands: Commands,
+    holder_query: Query<(Entity, &Will, &Children), With<Holder>>,
+    position_query: Query<&Position>,
+    velocity_query: Query<&Velocity>,
+    angle_query: Query<&Angle>,
+    angular_velocity_query: Query<&AngularVelocity>,
+    drop_as_grounded_query: Query<&RegroundThreshold, Without<Levitates>>,
+    gait_query: Query<&Gait>,
+    child_query: Query<&ParentRelationship, With<Parent>>
+) {
+    for (parent_entity, will, children) in holder_query.iter() {
+        if !will.drop {
+            continue;
+        }
+
+        for child_entity in children.iter() {
+            let parent_relationship_type = child_query.get(*child_entity).unwrap();
+            match parent_relationship_type {
+                ParentRelationship::Holder {held_distance, held_angle} => {
+                    let mut child_commands = commands.entity(*child_entity);
+                    child_commands.remove_parent();
+                    child_commands.remove::<ParentRelationship>();
+                    
+                    if let Ok(position) = position_query.get(parent_entity) {
+                        let angle;
+                        if let Ok(angle_component) = angle_query.get(parent_entity) {
+                            angle = angle_component.value;
+                        } else {
+                            angle = 0.0;
+                        }
+                        child_commands.insert(Position {value: position.value + Vec2::from_angle(angle).rotate(Vec2::new(*held_distance, 0.0))});
+                    }
+                    if let Ok(velocity) = velocity_query.get(parent_entity) {
+                        child_commands.insert(Velocity {value: velocity.value});
+
+                        let reground_threshold;
+                        if let Ok(reground_threshold_component) = drop_as_grounded_query.get(*child_entity) {
+                            reground_threshold = reground_threshold_component.value;
+                        } else {
+                            reground_threshold = DEFAULT_REGROUND_THRESHOLD;
+                        }
+
+                        if velocity.value.length() <= reground_threshold {
+                            child_commands.insert(Grounded {
+                                standing: gait_query.contains(*child_entity),
+                                floored_recovery_timer: None
+                            });
+                        } else {
+                            child_commands.insert(Flying);
+                        }
+                    }
+                    if let Ok(angle) = angle_query.get(parent_entity) {
+                        child_commands.insert(Angle {value: angle.value});
+                    }
+                    if let Ok(angular_velocity) = angular_velocity_query.get(parent_entity) {
+                        child_commands.insert(AngularVelocity {value: angular_velocity.value});
+                    }
+                },
+                _ => {
+                    continue;
+                }
+            }
+        }
+    }
+}
+
+fn picking_up(
+    mut commands: Commands,
+    holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder)>,
+    pick_up_able_query: Query<(Entity, &Position), (With<Holdable>, Without<Parent>)>
+) {
+    for (holder_entity, will, children_option, position, holder) in holder_query.iter() {
+        if !will.pick_up {
+            continue;
+        }
+        if let Some(children) = children_option {
+            if children.len() > 0 {
+                continue;
+            }
+        }
+
+        for (potential_child_entity, potential_child_position) in pick_up_able_query.iter() {
+            if position.value.distance(potential_child_position.value) <= holder.pick_up_range {
+                // Shouldn't matter if two entities pick up the same entity on the same tick (TODO: test)
+                commands.entity(holder_entity).push_children(&[potential_child_entity]);
+                let mut child_commands = commands.entity(potential_child_entity);
+                child_commands.insert(ParentRelationship::Holder {
+                    held_distance: 12.0,
+                    held_angle: 0.0
+                });
+                child_commands.remove::<Position>();
+                child_commands.remove::<Velocity>();
+                child_commands.remove::<Angle>();
+                child_commands.remove::<AngularVelocity>();
+                child_commands.remove::<Grounded>();
+                child_commands.remove::<Flying>();
+                break;
+            }
+        }
     }
 }

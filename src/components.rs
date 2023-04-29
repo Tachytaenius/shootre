@@ -88,7 +88,10 @@ pub struct ProjectileColour {pub value: Color}
 pub struct SpawnedMidTick {pub when: f32} // From 0 to 1
 
 #[derive(Component)]
-pub struct Collider {pub radius: f32}
+pub struct Collider {
+    pub radius: f32,
+    pub solid: bool
+}
 
 #[derive(Component)]
 pub struct Mass {pub value: f32}
@@ -99,11 +102,24 @@ pub struct Restitution {pub value: f32}
 #[derive(Component, Default)]
 pub struct Will {
     pub target_relative_velocity_multiplier: Option<Vec2>, // Should not lie outside the unit cirlce
-    pub target_angular_velocity_multiplier: Option<f32> // Should be -1 to 1
+    pub target_angular_velocity_multiplier: Option<f32>, // Should be -1 to 1
+    pub drop: bool,
+    pub pick_up: bool
 }
 
 #[derive(Component)]
-pub enum ParentRelationshipType {
-    Holder,
-    Container
+pub struct Holder {
+    pub pick_up_range: f32
+}
+
+#[derive(Component)]
+pub struct Holdable;
+
+#[derive(Component)]
+pub enum ParentRelationship {
+    Holder {
+        held_distance: f32,
+        held_angle: f32
+    },
+    Container // TODO: Remove visibility from contained items
 }

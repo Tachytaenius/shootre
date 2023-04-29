@@ -26,6 +26,9 @@ fn main() {
     struct MainSet;
 
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
+    struct ConsistentStateChecks;
+
+    #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
     enum RenderPreparationSet {CommandFlush, Main}
 
     let mut app = App::new();
@@ -62,8 +65,15 @@ fn main() {
             floor_friction.before(tripping),
             tripping,
             gun_cooldown
-        ).in_set(MainSet).before(RenderPreparationSet::CommandFlush))
+        ).in_set(MainSet).before(RenderPreparationSet::CommandFlush));
 
+    #[cfg(debug_assertions)]
+    app.add_systems((
+        check_consistent_grounded_flying_state,
+        check_consistent_hierarchy_state
+    ).in_set(ConsistentStateChecks).after(MainSet).before(RenderPreparationSet::CommandFlush));
+
+    app
         .add_system(apply_system_buffers.in_set(RenderPreparationSet::CommandFlush).before(RenderPreparationSet::Main))
         .add_systems((
             hollow_flying,
@@ -74,10 +84,7 @@ fn main() {
             rebuild_collider_shape
         ).in_set(RenderPreparationSet::Main));
 
-        #[cfg(debug_assertions)]
-        app.add_system(check_consistent_state.after(MainSet).before(RenderPreparationSet::CommandFlush));
-
-        app.run();
+    app.run();
 }
 
 fn spawn_camera (mut commands: Commands) {
@@ -798,8 +805,7 @@ fn _monitor_conservation(query: Query<(&Velocity, &Mass)>) {
     println!("Energy: {}, Momentum: {}", energy, momentum);
 }
 
-#[cfg(debug_assertions)]
-fn check_consistent_state(
+fn check_consistent_grounded_flying_state(
     query: Query<(
         Option<&Grounded>,
         Option<&Flying>
@@ -812,6 +818,19 @@ fn check_consistent_state(
                 assert!(grounded.floored_recovery_timer.is_none());
             }
         }
+    }
+}
+
+fn check_consistent_hierarchy_state(
+    child_query: Query<Entity, With<Parent>>,
+    child_type_query: Query<Entity, With<ParentRelationshipType>>
+) {
+    // Check that the set of all entities with Parent and the set of all entities with ParentRelationshipType is the same
+    for child_entity in child_query.iter() {
+        assert!(child_type_query.contains(child_entity));
+    }
+    for child_type_entity in child_type_query.iter() {
+        assert!(child_query.contains(child_type_entity));
     }
 }
 

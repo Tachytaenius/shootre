@@ -126,7 +126,7 @@ fn spawn_player(
     };
     let position = Vec2::ZERO;
     let angle = 0.0;
-    let player = commands.spawn((
+    commands.spawn((
         ( // Nested to get around bundle size limit
             Position {value: position},
             PreviousPosition {value: position},

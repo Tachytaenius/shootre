@@ -778,28 +778,62 @@ fn _circle_aabb_collision_detection(a_radius: f32, a_position: Vec2, b_width: f3
 }
 
 fn collision(
-    mut query: Query<(&Collider, &Position, &mut Velocity, Option<&Mass>, Option<&Restitution>)>
+    mut collider_query: Query<(&Collider, &Position, &mut Velocity, Option<&Mass>, Option<&Restitution>, Option<&Children>)>,
+    child_mass_query: Query<&Mass>
 ) {
-    let mut combinations = query.iter_combinations_mut();
+    let mut combinations = collider_query.iter_combinations_mut();
     while let Some([
-        (a_collider, a_position, mut a_velocity, a_mass_option, a_restitution_option),
-        (b_collider, b_position, mut b_velocity, b_mass_option, b_restitution_option)
+        (
+            a_collider,
+            a_position,
+            mut a_velocity,
+            a_mass_option,
+            a_restitution_option,
+            a_children_option
+        ), (
+            b_collider,
+            b_position,
+            mut b_velocity,
+            b_mass_option,
+            b_restitution_option,
+            b_children_option
+        )
     ]) = combinations.fetch_next() {
         if !(a_collider.solid && b_collider.solid) {
             continue;
         }
         if circle_circle_collision_detection(a_collider.radius, a_position.value, b_collider.radius, b_position.value) {
-            let a_mass;
+            let mut a_mass;
             if let Some(a_mass_component) = a_mass_option {
                 a_mass = a_mass_component.value;
+                if let Some(children) = a_children_option {
+                    for child_entity in children.iter() {
+                        if let Ok(child_mass) = child_mass_query.get(*child_entity) {
+                            a_mass += child_mass.value;
+                        }
+                    }
+                }
             } else {
-                a_mass = 1.0;
+                a_mass = 0.0;
             }
-            let b_mass;
+            if a_mass == 0.0 {
+                a_mass = DEFAULT_MASS;
+            }
+            let mut b_mass;
             if let Some(b_mass_component) = b_mass_option {
                 b_mass = b_mass_component.value;
+                if let Some(children) = b_children_option {
+                    for child_entity in children.iter() {
+                        if let Ok(child_mass) = child_mass_query.get(*child_entity) {
+                            b_mass += child_mass.value;
+                        }
+                    }
+                }
             } else {
-                b_mass = 1.0;
+                b_mass = 0.0;
+            }
+            if b_mass == 0.0 {
+                b_mass = DEFAULT_MASS;
             }
 
             let a_restitution;

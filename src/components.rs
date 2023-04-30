@@ -1,3 +1,4 @@
+use std::f32::consts::TAU;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -49,6 +50,14 @@ pub struct Grounded { // Not flying
     pub standing: bool, // Exempt from friction?
     pub floored_recovery_timer: Option<f32> // When this reaches 0, stand
 }
+
+pub const DEFAULT_FLOORED_ANGULAR_FRICTION: f32 = TAU * 2.0;
+#[derive(Component)]
+pub struct FlooredAngularFriction {pub value: f32}
+
+pub const DEFAULT_UNFLOORED_ANGULAR_FRICTION: f32 = TAU;
+#[derive(Component)]
+pub struct UnflooredAngularFriction {pub value: f32}
 
 pub const DEFAULT_FLOOR_FRICTION: f32 = 200.0;
 #[derive(Component)]

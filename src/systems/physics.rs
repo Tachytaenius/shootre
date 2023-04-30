@@ -202,6 +202,37 @@ pub fn manage_flooreds(
     }
 }
 
+pub fn angular_friction(
+    mut query: Query<(&mut AngularVelocity, Option<&FlooredAngularFriction>, Option<&UnflooredAngularFriction>, Option<&Grounded>)>,
+    time: Res<Time>
+) {
+    for (mut angular_velocity, floored_angular_friction_option, unfloored_angular_friction_option, grounded_option) in query.iter_mut() {
+        let floored;
+        if let Some(grounded) = grounded_option {
+            floored = !grounded.standing;
+        } else {
+            floored = true;
+        }
+
+        let friction;
+        if floored {
+            if let Some(floored_angular_friction) = floored_angular_friction_option {
+                friction = floored_angular_friction.value;
+            } else {
+                friction = DEFAULT_FLOORED_ANGULAR_FRICTION;
+            }
+        } else {
+            if let Some(unfloored_angular_friction) = unfloored_angular_friction_option {
+                friction = unfloored_angular_friction.value;
+            } else {
+                friction = DEFAULT_UNFLOORED_ANGULAR_FRICTION;
+            }
+        }
+
+        angular_velocity.value = angular_velocity.value.signum() * (angular_velocity.value.abs() - friction * time.delta_seconds()).max(0.0); // Doesn't need to be proper_signum
+    }
+}
+
 pub fn floor_friction(
     mut query: Query<(&Grounded, Option<&FloorFriction>, &mut Velocity)>,
     time: Res<Time>

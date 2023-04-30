@@ -54,7 +54,8 @@ fn main() {
             physics::apply_velocity.before(physics::manage_flyers).before(physics::tripping),
             physics::apply_angular_velocity,
             physics::manage_flyers.before(physics::manage_flooreds),
-            physics::manage_flooreds.before(physics::floor_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
+            physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
+            physics::angular_friction,
             physics::floor_friction.before(physics::tripping),
             physics::tripping,
         ).in_set(MainSet).before(RenderPreparationSet::CommandFlush));

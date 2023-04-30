@@ -65,13 +65,13 @@ pub fn collision(
             if let Some(a_restitution_component) = a_restitution_option {
                 a_restitution = a_restitution_component.value;
             } else {
-                a_restitution = 1.0;
+                a_restitution = DEFAULT_RESTITUTION;
             }
             let b_restitution;
             if let Some(b_restitution_component) = b_restitution_option {
                 b_restitution = b_restitution_component.value;
             } else {
-                b_restitution = 1.0;
+                b_restitution = DEFAULT_RESTITUTION;
             }
 
             (a_velocity.value, b_velocity.value) = collision_resolution::circle_circle(

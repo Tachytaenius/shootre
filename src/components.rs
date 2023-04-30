@@ -107,6 +107,7 @@ pub struct Collider {
 #[derive(Component)]
 pub struct Mass {pub value: f32}
 
+pub const DEFAULT_RESTITUTION: f32 = 1.0;
 #[derive(Component)]
 pub struct Restitution {pub value: f32}
 

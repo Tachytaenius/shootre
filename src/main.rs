@@ -1115,10 +1115,10 @@ fn dropping(
 
 fn picking_up(
     mut commands: Commands,
-    holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder)>,
+    holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder, Option<&Collider>)>,
     pick_up_able_query: Query<(Entity, &Position), (With<Holdable>, Without<Parent>)>
 ) {
-    for (holder_entity, will, children_option, position, holder) in holder_query.iter() {
+    for (holder_entity, will, children_option, position, holder, collider_option) in holder_query.iter() {
         if !will.pick_up {
             continue;
         }
@@ -1134,7 +1134,10 @@ fn picking_up(
                 commands.entity(holder_entity).push_children(&[potential_child_entity]);
                 let mut child_commands = commands.entity(potential_child_entity);
                 child_commands.insert(ParentRelationship::Holder {
-                    held_distance: 12.0,
+                    held_distance: match collider_option {
+                        Some(collider_component) => {collider_component.radius},
+                        _ => 0.0
+                    },
                     held_angle: 0.0
                 });
                 child_commands.remove::<Position>();

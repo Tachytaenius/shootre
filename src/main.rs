@@ -26,7 +26,7 @@ fn main() {
     app // TODO: Work out deterministic-but-still-parallelised system order
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
-        .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+        .insert_resource(ClearColor(Color::BLACK))
 
         .add_startup_system(startup::spawn_camera)
         .add_startup_system(startup::spawn_player)

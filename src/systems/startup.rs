@@ -65,6 +65,17 @@ pub fn spawn_player(
             standing: true,
             floored_recovery_timer: None
         },
+        ContainedBlood {
+            leak_amount: 0.0,
+            drip_time: 0.1,
+            floor_smear_drip_timer_speed_multiplier: 3.0,
+            drip_amount_multiplier: 0.005,
+            amount: 100.0,
+            colour: Color::RED,
+
+            drip_timer: 0.5
+        },
+        Gibbable,
         Holder {pick_up_range: 20.0}
     ));
 }
@@ -128,6 +139,69 @@ pub fn spawn_other(
         },
         shotgun,
         Holdable
+    ));
+
+    let position = Vec2::new(100.0, 100.0);
+    let angle = 0.0;
+    commands.spawn((
+        ( // Nested to get around bundle size limit
+            Position {value: position},
+            PreviousPosition {value: position},
+            Velocity {value: Vec2::ZERO},
+            Gait {
+                standing_max_speed: 200.0,
+                standing_acceleration: 800.0,
+                floored_max_speed: 100.0,
+                floored_acceleration: 400.0,
+                floored_recovery_time: 2.0
+            },
+            FlyingRecoveryRate {value: 800.0},
+            RegroundThreshold {value: 210.0},
+            TripThreshold {value: 220.0}
+        ),
+        (
+            Angle {value: angle},
+            PreviousAngle {value: angle},
+            AngularVelocity {value: 0.0},
+            AngularGait {
+                max_speed: TAU / 2.0,
+                acceleration: TAU * 8.0
+            },
+        ),
+        (
+            Collider {
+                radius: 10.0,
+                solid: true
+            },
+            Mass {value: 100.0},
+            Restitution {value: 0.2},
+            FloorFriction {value: 300.0}
+        ),
+        (
+            ShapeBundle {
+                // Path is created by rebuild_collider_shape before rendering
+                ..default()
+            },
+            Fill::color(Color::WHITE),
+            Stroke::new(Color::WHITE, 1.0)
+        ),
+        Will {..default()},
+        Grounded {
+            standing: true,
+            floored_recovery_timer: None
+        },
+        ContainedBlood {
+            leak_amount: 0.0,
+            drip_time: 0.1,
+            floor_smear_drip_timer_speed_multiplier: 3.0,
+            drip_amount_multiplier: 0.005,
+            amount: 1000.0,
+            colour: Color::RED,
+
+            drip_timer: 0.5
+        },
+        Gibbable,
+        Holder {pick_up_range: 20.0}
     ));
 }
 

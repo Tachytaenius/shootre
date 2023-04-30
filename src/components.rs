@@ -132,3 +132,27 @@ pub struct HoldingInfo {
     pub held_distance: f32,
     pub held_angle: f32
 }
+
+#[derive(Component)]
+pub struct ContainedBlood {
+    pub leak_amount: f32,
+    pub drip_time: f32, // How long between drips of blood when flying. Is multiplied by a random number in 0.0..=1.0
+    pub floor_smear_drip_timer_speed_multiplier: f32, // When floored but not stationary, how much faster does the drip timer go down
+    pub drip_amount_multiplier: f32, // Multiplied with leak_amount to get how much blood to lose on drip
+    pub colour: Color,
+    pub amount: f32, // Area of blood pool when fully depleted in pixels
+
+    pub drip_timer: f32
+}
+
+#[derive(Component)]
+pub struct BloodPool {
+    pub colour: Color,
+    pub area: f32
+}
+
+#[derive(Component)]
+pub struct Gib;
+
+#[derive(Component)]
+pub struct Gibbable;

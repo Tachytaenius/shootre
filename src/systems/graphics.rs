@@ -22,9 +22,9 @@ pub fn follow_player(
     }
 }
 
-pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>)>) {
-    for (mut transform, position_option, angle_option, parent_option, holding_info_option) in query.iter_mut() {
-        if let Some(_) = parent_option {
+pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&BloodPool>)>) {
+    for (mut transform, position_option, angle_option, parent_option, holding_info_option, blood_pool_option) in query.iter_mut() {
+        if parent_option.is_some() {
             let holding_info = holding_info_option.unwrap();
             transform.translation = Vec3::new(holding_info.held_distance, 0.0, 0.0);
             transform.rotation = Quat::from_rotation_z(holding_info.held_angle);
@@ -37,6 +37,9 @@ pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Op
             }
             transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
             transform.rotation = Quat::from_rotation_z(angle);
+        }
+        if blood_pool_option.is_some() {
+            transform.translation.z = -1.0;
         }
     }
 }
@@ -131,5 +134,24 @@ pub fn rebuild_collider_shape(
             Vec2::new(collider.radius + 5.0, 0.0)
         );
         commands.entity(entity).insert(GeometryBuilder::new().add(&circle).add(&line).build());
+    }
+}
+
+fn area_to_radius(area: f32) -> f32 {
+	(area / (TAU / 2.0)).sqrt()
+}
+
+pub fn rebuild_blood_pool(
+    mut commands: Commands,
+    mut query: Query<(Entity, &BloodPool, &mut Stroke, &mut Fill), With<Path>>
+) {
+    for (entity, blood_pool, mut stroke, mut fill) in query.iter_mut() {
+        let circle = shapes::Circle {
+            radius: area_to_radius(blood_pool.area),
+            ..default()
+        };
+        commands.entity(entity).insert(GeometryBuilder::build_as(&circle));
+        stroke.color = blood_pool.colour;
+        fill.color = blood_pool.colour;
     }
 }

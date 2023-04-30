@@ -49,15 +49,19 @@ fn main() {
             hierarchy::picking_up.before(locomotion::turning).before(locomotion::walking),
             locomotion::walking.before(guns::guns),
             locomotion::turning.before(guns::guns),
-            guns::guns.before(physics::collision),
+            guns::guns.before(physics::collision)
+        ).in_set(MainSet)) // Set tuple size limit...
+        .add_systems((
             physics::collision.before(physics::apply_velocity).before(physics::apply_angular_velocity),
             physics::apply_velocity.before(physics::manage_flyers).before(physics::tripping),
-            physics::apply_angular_velocity,
+            physics::apply_angular_velocity.before(gore::gibbing),
+            gore::gibbing.before(gore::blood_loss),
+            gore::blood_loss.before(physics::manage_flyers),
             physics::manage_flyers.before(physics::manage_flooreds),
             physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
             physics::angular_friction,
             physics::floor_friction.before(physics::tripping),
-            physics::tripping,
+            physics::tripping
         ).in_set(MainSet).before(RenderPreparationSet::CommandFlush));
 
     #[cfg(debug_assertions)]
@@ -74,7 +78,8 @@ fn main() {
             graphics::follow_player,
             graphics::update_transforms,
             graphics::rebuild_traced_shape,
-            graphics::rebuild_collider_shape
+            graphics::rebuild_collider_shape,
+            graphics::rebuild_blood_pool
         ).in_set(RenderPreparationSet::Main));
 
     app.run();

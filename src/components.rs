@@ -95,7 +95,6 @@ pub struct Collider {
     pub solid: bool
 }
 
-pub const DEFAULT_MASS: f32 = 1.0;
 #[derive(Component)]
 pub struct Mass {pub value: f32}
 

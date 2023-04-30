@@ -910,7 +910,7 @@ fn collision(
                 a_mass = 0.0;
             }
             if a_mass == 0.0 {
-                a_mass = DEFAULT_MASS;
+                continue;
             }
             let mut b_mass;
             if let Some(b_mass_component) = b_mass_option {
@@ -926,7 +926,7 @@ fn collision(
                 b_mass = 0.0;
             }
             if b_mass == 0.0 {
-                b_mass = DEFAULT_MASS;
+                continue;
             }
 
             let a_restitution;

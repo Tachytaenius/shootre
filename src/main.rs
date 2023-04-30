@@ -46,6 +46,7 @@ fn main() {
         .add_systems((
             store_previous_position,
             store_previous_angle,
+            store_previous_trigger_depressed,
             remove_spawned_mid_tick,
             clear_wills
         ).in_set(PreUpdateSet::Main).before(PreUpdateSet::CommandFlush))
@@ -56,17 +57,16 @@ fn main() {
             // ai.before(dropping),
             dropping.before(picking_up),
             picking_up.before(turning).before(walking),
-            walking.before(collision),
-            turning.before(shooting),
-            collision.before(shooting),
-            shooting.before(apply_velocity).before(apply_angular_velocity),
+            walking.before(guns),
+            turning.before(guns),
+            guns.before(collision),
+            collision.before(apply_velocity).before(apply_angular_velocity),
             apply_velocity.before(manage_flyers).before(tripping),
             apply_angular_velocity,
             manage_flyers.before(manage_flooreds),
             manage_flooreds.before(floor_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
             floor_friction.before(tripping),
             tripping,
-            gun_cooldown
         ).in_set(MainSet).before(RenderPreparationSet::CommandFlush));
 
     #[cfg(debug_assertions)]
@@ -100,30 +100,6 @@ fn spawn_camera (mut commands: Commands) {
 fn spawn_player(
     mut commands: Commands
 ) {
-    let _machine_gun = Gun {
-        projectile_speed: 2000.0,
-        projectile_flying_recovery_rate: 250.0,
-        projectile_spread: Vec2::new(0.005, 0.005),
-        projectile_count: 1,
-        projectile_colour: Color::CYAN,
-        muzzle_distance: 12.5,
-        cooldown: 0.01,
-        auto: true,
-
-        cooldown_timer: 0.0
-    };
-    let shotgun = Gun {
-        projectile_speed: 1750.0,
-        projectile_flying_recovery_rate: 500.0,
-        projectile_spread: Vec2::new(0.05, 0.05),
-        projectile_count: 25,
-        projectile_colour: Color::CYAN,
-        muzzle_distance: 11.0,
-        cooldown: 1.0,
-        auto: false,
-
-        cooldown_timer: 0.0
-    };
     let position = Vec2::ZERO;
     let angle = 0.0;
     commands.spawn((
@@ -174,7 +150,6 @@ fn spawn_player(
             standing: true,
             floored_recovery_timer: None
         },
-        shotgun,
         Holder {pick_up_range: 20.0}
     ));
 }
@@ -182,6 +157,34 @@ fn spawn_player(
 fn spawn_other(
     mut commands: Commands
 ) {
+    let _machine_gun = Gun {
+        projectile_speed: 2000.0,
+        projectile_flying_recovery_rate: 250.0,
+        projectile_spread: Vec2::new(0.005, 0.005),
+        projectile_count: 1,
+        projectile_colour: Color::CYAN,
+        muzzle_distance: 5.0,
+        cooldown: 0.01,
+        auto: true,
+
+        cooldown_timer: 0.0,
+        trigger_depressed: false,
+        trigger_depressed_previous_frame: false
+    };
+    let shotgun = Gun {
+        projectile_speed: 1750.0,
+        projectile_flying_recovery_rate: 500.0,
+        projectile_spread: Vec2::new(0.05, 0.05),
+        projectile_count: 25,
+        projectile_colour: Color::CYAN,
+        muzzle_distance: 5.0,
+        cooldown: 1.0,
+        auto: false,
+
+        cooldown_timer: 0.0,
+        trigger_depressed: false,
+        trigger_depressed_previous_frame: false
+    };
     let position = Vec2::new(100.0, 0.0);
     commands.spawn((
         (
@@ -208,6 +211,7 @@ fn spawn_other(
             standing: false,
             floored_recovery_timer: None
         },
+        shotgun,
         Holdable
     ));
 }
@@ -281,6 +285,8 @@ fn player_input(
 
         will.drop = keyboard_input.just_pressed(KeyCode::Q);
         will.pick_up = keyboard_input.just_pressed(KeyCode::F);
+
+        will.depress_trigger = keyboard_input.pressed(KeyCode::Space);
     }
 }
 
@@ -550,15 +556,9 @@ fn fill_grounded(mut query: Query<(&mut Fill, &Stroke), Added<Grounded>>) {
     }
 }
 
-// TODO: Don't do duplicate gun cooldown! We need an inventory system with guns tracking depressed trigger etc themsevles
-// "Pull trigger" system involving holder entity in query -> gun system that handles cooldown etc and only uses holder entity to get where it's being shot from
-
-fn gun_cooldown(
-    mut query: Query<&mut Gun>,
-    time: Res<Time>
-) {
+fn store_previous_trigger_depressed(mut query: Query<&mut Gun>) {
     for mut gun in query.iter_mut() {
-        gun.cooldown_timer = (gun.cooldown_timer - time.delta_seconds()).max(0.0);
+        gun.trigger_depressed_previous_frame = gun.trigger_depressed;
     }
 }
 
@@ -570,35 +570,128 @@ fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldow
     *cooldown -= delta;
 }
 
-fn shooting(
+fn guns(
     mut commands: Commands,
-    mut query: Query<(&mut Gun, Option<&Velocity>, Option<&AngularVelocity>, &Angle, &Position), With<Player>>,
-    keyboard_input: Res<Input<KeyCode>>,
+    mut gun_query: Query<(
+        &mut Gun,
+        Option<&Parent>,
+        Option<&ParentRelationship>,
+        Option<&Position>,
+        Option<&Velocity>,
+        Option<&Angle>,
+        Option<&AngularVelocity>
+    )>,
+    holder_query: Query<(
+        Option<&Will>,
+        &Position,
+        Option<&Velocity>,
+        Option<&Angle>,
+        Option<&AngularVelocity>
+    ), With<Children>>,
     time: Res<Time>
 ) {
-    if let Ok((mut gun, velocity_option, angular_velocity_option, angle, position)) = query.get_single_mut() {
-        let velocity_value;
-        if let Some(velocity) = velocity_option {
-            velocity_value = velocity.value;
-        } else {
-            velocity_value = Vec2::ZERO;
+    for (
+        mut gun,
+        parent_option,
+        parent_relationship_option,
+        position_option,
+        velocity_option,
+        angle_option,
+        angular_velocity_option
+    ) in gun_query.iter_mut() {
+        // If no willed holder parent, trigger is not depressd, else trigger is depressed depending on will
+        gun.trigger_depressed = false;
+        if let Some(parent) = parent_option {
+            match parent_relationship_option.unwrap() {
+                ParentRelationship::Holder {..} => {
+                    let parent_result = holder_query.get(parent.get());
+                    if let Ok((will_option, _, _, _, _)) = parent_result {
+                        if let Some(will) = will_option {
+                            gun.trigger_depressed = will.depress_trigger;
+                        }
+                    }
+                },
+                _ => {}
+            }
         }
 
-        let angular_velocity_value;
-        if let Some(angular_velocity) = angular_velocity_option {
-            angular_velocity_value = angular_velocity.value;
+        // Get spatial information from self or parent
+        let position;
+        let velocity;
+        let angle;
+        let angular_velocity;
+        // Position is expected, since there is no reasonable default. Panic if not present
+        if let Some(parent) = parent_option {
+            let parent_result = holder_query.get(parent.get());
+            if let Ok((
+                _,
+                parent_position,
+                parent_velocity_option,
+                parent_angle_option,
+                parent_angular_velocity_option
+            )) = parent_result {
+                let held_distance;
+                let held_angle;
+                match *parent_relationship_option.unwrap() {
+                    ParentRelationship::Holder {
+                        held_distance: relationship_held_distance,
+                        held_angle: relationship_held_angle
+                    } => {
+                        held_distance = relationship_held_distance;
+                        held_angle = relationship_held_angle;
+                    },
+                    _ => {
+                        held_distance = 0.0;
+                        held_angle = 0.0;
+                    }
+                }
+                let parent_position = parent_position.value;
+                let parent_angle;
+                if let Some(parent_angle_component) = parent_angle_option {
+                    parent_angle = parent_angle_component.value;
+                } else {
+                    parent_angle = 0.0;
+                }
+                position = parent_position + Vec2::from_angle(parent_angle).rotate(Vec2::new(held_distance, 0.0));
+                angle = parent_angle + held_angle;
+                if let Some(parent_velocity_component) = parent_velocity_option {
+                    velocity = parent_velocity_component.value;
+                } else {
+                    velocity = Vec2::ZERO;
+                }
+                if let Some(parent_angular_velocity_component) = parent_angular_velocity_option {
+                    angular_velocity = parent_angular_velocity_component.value;
+                } else {
+                    angular_velocity = 0.0;
+                }
+            } else {
+                panic!(); // Parent does not have position
+            }
         } else {
-            angular_velocity_value = 0.0;
+            position = position_option.unwrap().value; // Position expected to be on the gun itself if there's no parent
+            if let Some(angle_component) = angle_option {
+                angle = angle_component.value;
+            } else {
+                angle = 0.0;
+            }
+            if let Some(velocity_component) = velocity_option {
+                velocity = velocity_component.value;
+            } else {
+                velocity = Vec2::ZERO;
+            }
+            if let Some(angular_velocity_component) = angular_velocity_option {
+                angular_velocity = angular_velocity_component.value;
+            } else {
+                angular_velocity = 0.0;
+            }
         }
-
-        let mut rng = rand::thread_rng();
 
         let mut shoot = if gun.auto {
-            keyboard_input.pressed(KeyCode::Space)
+            gun.trigger_depressed
         } else {
-            keyboard_input.just_pressed(KeyCode::Space)
+            gun.trigger_depressed && !gun.trigger_depressed_previous_frame
         };
-
+        let mut rng = rand::thread_rng();
         // The key point here is that for rapid-fire guns, gun.cooldown (and
         // by extension gun.cooldown_timer) may fit in target_time multiple times
         let mut current_time = 0.0;
@@ -611,14 +704,14 @@ fn shooting(
                     shoot = false;
                 }
 
-                let shooter_position = position.value + velocity_value * current_time;
-                let shooter_angle = angle.value + angular_velocity_value * current_time;
-                let aim_direction = Vec2::from_angle(shooter_angle);
-                let projectile_origin = shooter_position + aim_direction * gun.muzzle_distance;
+                let gun_position = position + velocity * current_time;
+                let gun_angle = angle + angular_velocity * current_time;
+                let aim_direction = Vec2::from_angle(gun_angle);
+                let projectile_origin = gun_position + aim_direction * gun.muzzle_distance;
 
                 for _ in 0..gun.projectile_count {
                     // target_time - current_time is used a couple of times because the earlier the projectile was fired, the longer it has had for its properties to advance
-                    let mut projectile_velocity = velocity_value + aim_direction * gun.projectile_speed +
+                    let mut projectile_velocity = velocity + aim_direction * gun.projectile_speed +
                         random_vec2_circle(&mut rng, 1.0) * gun.projectile_spread * gun.projectile_speed; // In here because of projectile-specific use of random
                     let projectile_position = projectile_origin + projectile_velocity * (target_time - current_time); // TODO: collision detection for the distance travelled
 

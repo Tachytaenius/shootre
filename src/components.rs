@@ -75,7 +75,9 @@ pub struct Gun {
     pub cooldown: f32,
     pub auto: bool,
 
-    pub cooldown_timer: f32
+    pub cooldown_timer: f32,
+    pub trigger_depressed: bool,
+    pub trigger_depressed_previous_frame: bool
 }
 
 #[derive(Component)]
@@ -105,7 +107,8 @@ pub struct Will {
     pub target_relative_velocity_multiplier: Option<Vec2>, // Should not lie outside the unit cirlce
     pub target_angular_velocity_multiplier: Option<f32>, // Should be -1 to 1
     pub drop: bool,
-    pub pick_up: bool
+    pub pick_up: bool,
+    pub depress_trigger: bool
 }
 
 #[derive(Component)]

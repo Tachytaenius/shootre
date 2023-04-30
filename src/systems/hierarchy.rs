@@ -107,6 +107,7 @@ pub fn picking_up(
     }
 }
 
+#[cfg(debug_assertions)]
 pub fn check_consistent_hierarchy_state(
     child_query: Query<(Entity, &Parent)>,
     holder_query: Query<&Holder>,

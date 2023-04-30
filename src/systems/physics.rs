@@ -111,6 +111,7 @@ pub fn _monitor_conservation(query: Query<(&Velocity, &Mass)>) {
     println!("Energy: {}, Momentum: {}", energy, momentum);
 }
 
+#[cfg(debug_assertions)]
 pub fn check_consistent_grounded_flying_state(
     query: Query<(
         Option<&Grounded>,

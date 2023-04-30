@@ -27,6 +27,7 @@ pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Op
         if let Some(_) = parent_option {
             let holding_info = holding_info_option.unwrap();
             transform.translation = Vec3::new(holding_info.held_distance, 0.0, 0.0);
+            transform.rotation = Quat::from_rotation_z(holding_info.held_angle);
         } else if let Some(position) = position_option {
             let angle;
             if let Some(angle_component) = angle_option {

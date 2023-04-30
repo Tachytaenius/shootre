@@ -100,7 +100,6 @@ pub fn apply_angular_velocity(
     }
 }
 
-
 pub fn _monitor_conservation(query: Query<(&Velocity, &Mass)>) {
     let mut energy = 0.0;
     let mut momentum = Vec2::ZERO;

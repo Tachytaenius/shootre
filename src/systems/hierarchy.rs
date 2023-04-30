@@ -10,7 +10,7 @@ pub fn dropping(
     angular_velocity_query: Query<&AngularVelocity>,
     drop_as_grounded_query: Query<&RegroundThreshold, Without<Levitates>>,
     gait_query: Query<&Gait>,
-    child_query: Query<&ParentRelationship, With<Parent>>
+    child_query: Query<&HoldingInfo, With<Parent>>
 ) {
     for (parent_entity, will, children) in holder_query.iter() {
         if !will.drop {
@@ -18,51 +18,47 @@ pub fn dropping(
         }
 
         for child_entity in children.iter() {
-            let parent_relationship_type = child_query.get(*child_entity).unwrap();
-            match parent_relationship_type {
-                ParentRelationship::Holder {held_distance, held_angle} => {
-                    let mut child_commands = commands.entity(*child_entity);
-                    child_commands.remove_parent();
-                    child_commands.remove::<ParentRelationship>();
-                    
-                    if let Ok(position) = position_query.get(parent_entity) {
-                        let angle;
-                        if let Ok(angle_component) = angle_query.get(parent_entity) {
-                            angle = angle_component.value;
-                        } else {
-                            angle = 0.0;
-                        }
-                        child_commands.insert(Position {value: position.value + Vec2::from_angle(angle).rotate(Vec2::new(*held_distance, 0.0))});
-                    }
-                    if let Ok(velocity) = velocity_query.get(parent_entity) {
-                        child_commands.insert(Velocity {value: velocity.value});
+            let holding_info = child_query.get(*child_entity).unwrap();
+            let held_distance = holding_info.held_distance;
+            let held_angle = holding_info.held_angle;
 
-                        let reground_threshold;
-                        if let Ok(reground_threshold_component) = drop_as_grounded_query.get(*child_entity) {
-                            reground_threshold = reground_threshold_component.value;
-                        } else {
-                            reground_threshold = DEFAULT_REGROUND_THRESHOLD;
-                        }
+            let mut child_commands = commands.entity(*child_entity);
+            child_commands.remove_parent();
+            child_commands.remove::<HoldingInfo>();
 
-                        if velocity.value.length() <= reground_threshold {
-                            child_commands.insert(Grounded {
-                                standing: gait_query.contains(*child_entity),
-                                floored_recovery_timer: None
-                            });
-                        } else {
-                            child_commands.insert(Flying);
-                        }
-                    }
-                    if let Ok(angle) = angle_query.get(parent_entity) {
-                        child_commands.insert(Angle {value: angle.value + held_angle}); // TODO: Test that it is indeed parent_angle + held_angle
-                    }
-                    if let Ok(angular_velocity) = angular_velocity_query.get(parent_entity) {
-                        child_commands.insert(AngularVelocity {value: angular_velocity.value});
-                    }
-                },
-                _ => {
-                    continue;
+            if let Ok(position) = position_query.get(parent_entity) {
+                let angle;
+                if let Ok(angle_component) = angle_query.get(parent_entity) {
+                    angle = angle_component.value;
+                } else {
+                    angle = 0.0;
                 }
+                child_commands.insert(Position {value: position.value + Vec2::from_angle(angle).rotate(Vec2::new(held_distance, 0.0))});
+            }
+            if let Ok(velocity) = velocity_query.get(parent_entity) {
+                child_commands.insert(Velocity {value: velocity.value});
+
+                let reground_threshold;
+                if let Ok(reground_threshold_component) = drop_as_grounded_query.get(*child_entity) {
+                    reground_threshold = reground_threshold_component.value;
+                } else {
+                    reground_threshold = DEFAULT_REGROUND_THRESHOLD;
+                }
+
+                if velocity.value.length() <= reground_threshold {
+                    child_commands.insert(Grounded {
+                        standing: gait_query.contains(*child_entity),
+                        floored_recovery_timer: None
+                    });
+                } else {
+                    child_commands.insert(Flying);
+                }
+            }
+            if let Ok(angle) = angle_query.get(parent_entity) {
+                child_commands.insert(Angle {value: angle.value + held_angle}); // TODO: Test that it is indeed parent_angle + held_angle
+            }
+            if let Ok(angular_velocity) = angular_velocity_query.get(parent_entity) {
+                child_commands.insert(AngularVelocity {value: angular_velocity.value});
             }
         }
     }
@@ -88,7 +84,7 @@ pub fn picking_up(
                 // Shouldn't matter if two entities pick up the same entity on the same tick (TODO: test)
                 commands.entity(holder_entity).push_children(&[potential_child_entity]);
                 let mut child_commands = commands.entity(potential_child_entity);
-                child_commands.insert(ParentRelationship::Holder {
+                child_commands.insert(HoldingInfo {
                     held_distance: match collider_option {
                         Some(collider_component) => {collider_component.radius},
                         _ => 0.0
@@ -112,7 +108,7 @@ pub fn check_consistent_hierarchy_state(
     child_query: Query<(Entity, &Parent)>,
     holder_query: Query<&Holder>,
     holdable_query: Query<&Holdable>,
-    child_type_query: Query<(Entity, &ParentRelationship)>,
+    child_type_query: Query<(Entity, &HoldingInfo)>,
     position_query: Query<&Position>,
     velocity_query: Query<&Velocity>,
     angle_query: Query<&Angle>,
@@ -121,7 +117,7 @@ pub fn check_consistent_hierarchy_state(
     flying_query: Query<&Flying>,
     parents_with_children_query: Query<(With<Parent>, With<Children>)>
 ) {
-    // Check that the set of all entities with Parent and the set of all entities with ParentRelationship is the same
+    // Check that the set of all entities with Parent and the set of all entities with HoldingInfo is the same
     // Check that no children have spatial information components
     // Check that all held entities have Holdable and that their holders have Holder
     // Check that there are no entities with a parent and children (proper chains of entities would be a huge challenge)
@@ -136,14 +132,8 @@ pub fn check_consistent_hierarchy_state(
         assert!(!grounded_query.contains(child_entity));
         assert!(!flying_query.contains(child_entity));
 
-        let (_, parent_relationship_type) = child_type_query.get(child_entity).unwrap();
-        match parent_relationship_type {
-            ParentRelationship::Holder {..} => {
-                assert!(holdable_query.contains(child_entity));
-                assert!(holder_query.contains(parent.get()));
-            },
-            _ => {}
-        }
+        assert!(holdable_query.contains(child_entity));
+        assert!(holder_query.contains(parent.get()));
     }
 
     for (child_type_entity, _) in child_type_query.iter() {

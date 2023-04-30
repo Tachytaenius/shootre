@@ -22,12 +22,11 @@ pub fn follow_player(
     }
 }
 
-pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&ParentRelationship>)>) {
-    for (mut transform, position_option, angle_option, parent_option, parent_relationship_option) in query.iter_mut() {
+pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>)>) {
+    for (mut transform, position_option, angle_option, parent_option, holding_info_option) in query.iter_mut() {
         if let Some(_) = parent_option {
-            if let ParentRelationship::Holder {held_distance, ..} = *parent_relationship_option.unwrap() {
-                transform.translation = Vec3::new(held_distance, 0.0, 0.0);
-            }
+            let holding_info = holding_info_option.unwrap();
+            transform.translation = Vec3::new(holding_info.held_distance, 0.0, 0.0);
         } else if let Some(position) = position_option {
             let angle;
             if let Some(angle_component) = angle_option {

@@ -16,7 +16,7 @@ pub fn guns(
     mut gun_query: Query<(
         &mut Gun,
         Option<&Parent>,
-        Option<&ParentRelationship>,
+        Option<&HoldingInfo>,
         Option<&Position>,
         Option<&Velocity>,
         Option<&Angle>,
@@ -34,25 +34,20 @@ pub fn guns(
     for (
         mut gun,
         parent_option,
-        parent_relationship_option,
+        holding_info_option,
         position_option,
         velocity_option,
         angle_option,
         angular_velocity_option
     ) in gun_query.iter_mut() {
-        // If no willed holder parent, trigger is not depressd, else trigger is depressed depending on will
+        // If no willed parent, trigger is not depressd, else trigger is depressed depending on will
         gun.trigger_depressed = false;
         if let Some(parent) = parent_option {
-            match parent_relationship_option.unwrap() {
-                ParentRelationship::Holder {..} => {
-                    let parent_result = holder_query.get(parent.get());
-                    if let Ok((will_option, _, _, _, _)) = parent_result {
-                        if let Some(will) = will_option {
-                            gun.trigger_depressed = will.depress_trigger;
-                        }
-                    }
-                },
-                _ => {}
+            let parent_result = holder_query.get(parent.get());
+            if let Ok((will_option, _, _, _, _)) = parent_result {
+                if let Some(will) = will_option {
+                    gun.trigger_depressed = will.depress_trigger;
+                }
             }
         }
 
@@ -71,21 +66,10 @@ pub fn guns(
                 parent_angle_option,
                 parent_angular_velocity_option
             )) = parent_result {
-                let held_distance;
-                let held_angle;
-                match *parent_relationship_option.unwrap() {
-                    ParentRelationship::Holder {
-                        held_distance: relationship_held_distance,
-                        held_angle: relationship_held_angle
-                    } => {
-                        held_distance = relationship_held_distance;
-                        held_angle = relationship_held_angle;
-                    },
-                    _ => {
-                        held_distance = 0.0;
-                        held_angle = 0.0;
-                    }
-                }
+                let holding_info = holding_info_option.unwrap();
+                let held_distance = holding_info.held_distance;
+                let held_angle = holding_info.held_angle;
+                
                 let parent_position = parent_position.value;
                 let parent_angle;
                 if let Some(parent_angle_component) = parent_angle_option {

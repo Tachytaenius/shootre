@@ -128,10 +128,7 @@ pub struct Holder {
 pub struct Holdable;
 
 #[derive(Component)]
-pub enum ParentRelationship {
-    Holder {
-        held_distance: f32,
-        held_angle: f32
-    },
-    Container // TODO: Remove visibility from contained items
+pub struct HoldingInfo {
+    pub held_distance: f32,
+    pub held_angle: f32
 }

@@ -122,10 +122,14 @@ pub fn rebuild_collider_shape(
     query: Query<(Entity, &Collider), With<Path>>
 ) {
     for (entity, collider) in query.iter() {
-        let shape = shapes::Circle {
+        let circle = shapes::Circle {
             radius: collider.radius,
             ..default()
         };
-        commands.entity(entity).insert(GeometryBuilder::build_as(&shape));
+        let line = shapes::Line(
+            Vec2::new(collider.radius, 0.0),
+            Vec2::new(collider.radius + 5.0, 0.0)
+        );
+        commands.entity(entity).insert(GeometryBuilder::new().add(&circle).add(&line).build());
     }
 }

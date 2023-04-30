@@ -122,7 +122,7 @@ pub fn rebuild_traced_shape(
 
 pub fn rebuild_collider_shape(
     mut commands: Commands,
-    query: Query<(Entity, &Collider), With<Path>>
+    query: Query<(Entity, &Collider), (Changed<Collider>, With<Path>)>
 ) {
     for (entity, collider) in query.iter() {
         let circle = shapes::Circle {
@@ -143,7 +143,7 @@ fn area_to_radius(area: f32) -> f32 {
 
 pub fn rebuild_blood_pool(
     mut commands: Commands,
-    mut query: Query<(Entity, &BloodPool, &mut Stroke, &mut Fill), With<Path>>
+    mut query: Query<(Entity, &BloodPool, &mut Stroke, &mut Fill), (Changed<BloodPool>, With<Path>)>
 ) {
     for (entity, blood_pool, mut stroke, mut fill) in query.iter_mut() {
         let circle = shapes::Circle {

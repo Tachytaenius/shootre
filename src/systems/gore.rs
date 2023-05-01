@@ -145,12 +145,12 @@ const STATIONARY_BLOOD_POOL_CLOSENESS_THRESHOLD: f32 = 0.01; // How close a stat
 
 pub fn blood_loss(
 	mut commands: Commands,
-	mut bleeder_query: Query<(&mut ContainedBlood, &Position, Option<&PreviousPosition>, Option<&Velocity>, Option<&Flying>)>,
+	mut bleeder_query: Query<(&mut ContainedBlood, &Position, Option<&PreviousPosition>, Option<&Velocity>, Option<&Grounded>)>,
 	mut blood_pool_query: Query<(&mut BloodPool, &Position)>,
 	time: Res<Time>
 ) {
 	let mut rng = rand::thread_rng();
-	for (mut contained_blood, position, previous_position_option, velocity_option, flying_option) in bleeder_query.iter_mut() {
+	for (mut contained_blood, position, previous_position_option, velocity_option, grounded_option) in bleeder_query.iter_mut() {
 		if contained_blood.amount == 0.0 || contained_blood.leak_amount == 0.0 {
 			continue;
 		}
@@ -167,14 +167,17 @@ pub fn blood_loss(
 			Vec2::ZERO
 		};
 
-		if flying_option.is_none() { // When grounded the timer time is multiplied (should be upwards) so that blood smears more on the ground
+		let smearing = grounded_option.is_some() && !grounded_option.unwrap().standing; // Rapid "drips"
+		let pooling = velocity.length() == 0.0; // Instead of dripping, just pool on the ground
+
+		if smearing {
 			contained_blood.drip_timer -= time.delta_seconds() * contained_blood.floor_smear_drip_timer_speed_multiplier;
 		} else {
 			contained_blood.drip_timer -= time.delta_seconds();
 		}
 		if contained_blood.drip_timer <= 0.0 {
 			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(0.0..=1.0); // Multiplied like this to stagger the drips
-			if flying_option.is_some() || velocity.length() > 0.0 { // Drip when flying, or drip (faster) when grounded but still moving
+			if !pooling { // Actually do something with the drip timer going down
 				let blood_transfer = (contained_blood.drip_amount_multiplier * contained_blood.leak_amount).min(contained_blood.amount);
 				contained_blood.amount -= blood_transfer;
 				commands.spawn((
@@ -192,7 +195,7 @@ pub fn blood_loss(
 				));
 			}
 		}
-		if flying_option.is_none() && velocity.length() == 0.0 { // Leak out into a larger pool when not moving
+		if pooling {
 			let blood_transfer = (contained_blood.leak_amount * time.delta_seconds()).min(contained_blood.amount);
 			contained_blood.amount -= blood_transfer;
 			let mut found = false;

@@ -84,38 +84,10 @@ pub fn spawn_player(
 pub fn spawn_other(
     mut commands: Commands
 ) {
-    let _machine_gun = Gun {
-        projectile_speed: 2000.0,
-        projectile_flying_recovery_rate: 250.0,
-        projectile_spread: Vec2::new(0.005, 0.005),
-        projectile_count: 1,
-        projectile_colour: Color::CYAN,
-        muzzle_distance: 5.0,
-        cooldown: 0.01,
-        auto: true,
-
-        cooldown_timer: 0.0,
-        trigger_depressed: false,
-        trigger_depressed_previous_frame: false
-    };
-    let shotgun = Gun {
-        projectile_speed: 1750.0,
-        projectile_flying_recovery_rate: 500.0,
-        projectile_spread: Vec2::new(0.05, 0.05),
-        projectile_count: 25,
-        projectile_colour: Color::CYAN,
-        muzzle_distance: 5.0,
-        cooldown: 1.0,
-        auto: false,
-
-        cooldown_timer: 0.0,
-        trigger_depressed: false,
-        trigger_depressed_previous_frame: false
-    };
-    let position = Vec2::new(100.0, 0.0);
+    // Shotgun
     commands.spawn((
         (
-            Position {value: position},
+            Position {value: Vec2::new(100.0, 0.0)},
             Velocity {value: Vec2::ZERO}
         ),
         (
@@ -131,18 +103,74 @@ pub fn spawn_other(
             ShapeBundle {
                 ..default()
             },
-            Fill::color(Color::WHITE),
-            Stroke::new(Color::WHITE, 1.0)
+            Fill::color(Color::GRAY),
+            Stroke::new(Color::GRAY, 1.0)
         ),
         Grounded {
             standing: false,
             floored_recovery_timer: None
         },
-        shotgun,
+        Gun {
+            projectile_speed: 2000.0,
+            projectile_flying_recovery_rate: 500.0,
+            projectile_spread: Vec2::new(0.05, 0.05),
+            projectile_count: 25,
+            projectile_colour: Color::YELLOW,
+            muzzle_distance: 5.0,
+            cooldown: 1.0,
+            auto: false,
+    
+            cooldown_timer: 0.0,
+            trigger_depressed: false,
+            trigger_depressed_previous_frame: false
+        },
         Holdable
     ));
 
-    let position = Vec2::new(100.0, 100.0);
+    // Machine gun
+    commands.spawn((
+        (
+            Position {value: Vec2::new(100.0, 100.0)},
+            Velocity {value: Vec2::ZERO}
+        ),
+        (
+            Collider {
+                radius: 7.0,
+                solid: false
+            },
+            Mass {value: 20.0},
+            Restitution {value: 0.3},
+            FloorFriction {value: 300.0}
+        ),
+        (
+            ShapeBundle {
+                ..default()
+            },
+            Fill::color(Color::GRAY),
+            Stroke::new(Color::GRAY, 1.0)
+        ),
+        Grounded {
+            standing: false,
+            floored_recovery_timer: None
+        },
+        Gun {
+            projectile_speed: 2500.0,
+            projectile_flying_recovery_rate: 250.0,
+            projectile_spread: Vec2::new(0.005, 0.005),
+            projectile_count: 1,
+            projectile_colour: Color::YELLOW,
+            muzzle_distance: 7.0,
+            cooldown: 0.1,
+            auto: true,
+    
+            cooldown_timer: 0.0,
+            trigger_depressed: false,
+            trigger_depressed_previous_frame: false
+        },
+        Holdable
+    ));
+
+    let position = Vec2::new(0.0, 100.0);
     let angle = 0.0;
     commands.spawn((
         ( // Nested to get around bundle size limit
@@ -215,7 +243,7 @@ pub fn spawn_dots(
         ..default()
     };
     let mut rng = rand::thread_rng();
-    for _ in 0..1000 {
+    for _ in 0..0 {
         commands.spawn((
             Position {value: random_in_shape::circle(&mut rng, 1000.0)},
             ShapeBundle {

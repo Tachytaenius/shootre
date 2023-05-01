@@ -5,7 +5,10 @@ use bevy_prototype_lyon::prelude::*;
 
 pub fn follow_player(
     mut camera_query: Query<&mut Transform, With<Camera>>,
-    player_query: Query<(&Position, Option<&Angle>), With<Player>>
+    player_query: Query<
+        (&Position, Option<&Angle>),
+        (With<Player>, Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>)
+    >
 ) {
     if let Ok(mut camera_transform) = camera_query.get_single_mut() {
         if let Ok((player_position, player_angle_option)) = player_query.get_single() {
@@ -22,7 +25,10 @@ pub fn follow_player(
     }
 }
 
-pub fn update_transforms(mut query: Query<(&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&BloodPool>)>) {
+pub fn update_transforms(mut query: Query<
+    (&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&BloodPool>),
+    Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>
+>) {
     for (mut transform, position_option, angle_option, parent_option, holding_info_option, blood_pool_option) in query.iter_mut() {
         if parent_option.is_some() {
             let holding_info = holding_info_option.unwrap();

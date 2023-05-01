@@ -137,7 +137,8 @@ pub struct HoldingInfo {
 #[derive(Component)]
 pub struct ContainedBlood {
     pub leak_amount: f32,
-    pub drip_time: f32, // How long between drips of blood when flying. Is multiplied by a random number in 0.0..=1.0
+    pub drip_time: f32, // How long between drips of blood when flying. Is multiplied by a random number in the range drip_time_minimum_multiplier..=1.0
+    pub drip_time_minimum_multiplier: f32, // 1.0 for evenly-spaced-in-time drip events (though the drips will not be evenly-spaced in space as they are created somewhere between previous and last position)
     pub floor_smear_drip_timer_speed_multiplier: f32, // When floored but not stationary, how much faster does the drip timer go down
     pub drip_amount_multiplier: f32, // Multiplied with leak_amount to get how much blood to lose on drip
     pub colour: Color,

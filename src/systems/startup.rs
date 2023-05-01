@@ -68,6 +68,7 @@ pub fn spawn_player(
         ContainedBlood {
             leak_amount: 0.0,
             drip_time: 0.1,
+            drip_time_minimum_multiplier: 0.75,
             floor_smear_drip_timer_speed_multiplier: 3.0,
             drip_amount_multiplier: 0.005,
             amount: 100.0,
@@ -193,6 +194,7 @@ pub fn spawn_other(
         ContainedBlood {
             leak_amount: 0.0,
             drip_time: 0.1,
+            drip_time_minimum_multiplier: 0.75,
             floor_smear_drip_timer_speed_multiplier: 3.0,
             drip_amount_multiplier: 0.005,
             amount: 1000.0,

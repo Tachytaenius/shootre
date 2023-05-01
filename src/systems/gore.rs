@@ -45,7 +45,8 @@ fn gib(
 			},
 			ContainedBlood {
 				leak_amount: blood_amount / 40.0,
-				drip_time: 0.1,
+				drip_time: 0.05,
+				drip_time_minimum_multiplier: 0.75,
 				floor_smear_drip_timer_speed_multiplier: 3.0,
 				drip_amount_multiplier: 0.005,
 				colour: blood_colour,
@@ -176,7 +177,7 @@ pub fn blood_loss(
 			contained_blood.drip_timer -= time.delta_seconds();
 		}
 		if contained_blood.drip_timer <= 0.0 {
-			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(0.0..=1.0); // Multiplied like this to stagger the drips
+			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied like this to stagger the drips
 			if !pooling { // Actually do something with the drip timer going down
 				let blood_transfer = (contained_blood.drip_amount_multiplier * contained_blood.leak_amount).min(contained_blood.amount);
 				contained_blood.amount -= blood_transfer;

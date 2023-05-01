@@ -137,7 +137,7 @@ pub fn guns(
                 for _ in 0..gun.projectile_count {
                     // target_time - current_time is used a couple of times because the earlier the projectile was fired, the longer it has had for its properties to advance
                     let mut projectile_velocity = velocity + aim_direction * gun.projectile_speed +
-                        random_in_shape::circle(&mut rng, 1.0) * gun.projectile_spread * gun.projectile_speed; // In here because of projectile-specific use of random
+                        Vec2::from_angle(gun_angle).rotate(random_in_shape::circle(&mut rng, 1.0) * gun.projectile_spread * gun.projectile_speed); // In here because of projectile-specific use of random
                     let projectile_position = projectile_origin + projectile_velocity * (target_time - current_time); // TODO: collision detection for the distance travelled
 
                     // Simulate a bit of speed reduction

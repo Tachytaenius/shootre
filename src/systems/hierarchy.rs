@@ -115,12 +115,14 @@ pub fn check_consistent_hierarchy_state(
     angular_velocity_query: Query<&AngularVelocity>,
     grounded_query: Query<&Grounded>,
     flying_query: Query<&Flying>,
-    parents_with_children_query: Query<(With<Parent>, With<Children>)>
+    parents_with_children_query: Query<(With<Parent>, With<Children>)>,
+    players_with_parents_query: Query<(With<Player>, With<Parent>)>
 ) {
     // Check that the set of all entities with Parent and the set of all entities with HoldingInfo is the same
     // Check that no children have spatial information components
     // Check that all held entities have Holdable and that their holders have Holder
     // Check that there are no entities with a parent and children (proper chains of entities would be a huge challenge)
+    // Check that the player has no parent (that level of rendering flexibility is a huge challenge (in Bevy))
 
     for (child_entity, parent) in child_query.iter() {
         assert!(child_type_query.contains(child_entity));
@@ -141,6 +143,10 @@ pub fn check_consistent_hierarchy_state(
     }
 
     if !parents_with_children_query.is_empty() {
+        panic!();
+    }
+
+    if !players_with_parents_query.is_empty() {
         panic!();
     }
 }

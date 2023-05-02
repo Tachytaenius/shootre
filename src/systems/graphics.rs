@@ -20,16 +20,17 @@ pub fn follow_player(
             }
             camera_transform.rotation = Quat::from_rotation_z(entity_angle - TAU / 4.0);
             let camera_position = player_position.value + Vec2::from_angle(entity_angle) * 250.0; // Project camera position forwards to move player to bottom of screen
-            camera_transform.translation = Vec3::new(camera_position.x, camera_position.y, 0.0);
+            let z_height = camera_transform.translation.z;
+            camera_transform.translation = Vec3::new(camera_position.x, camera_position.y, z_height);
         }
     }
 }
 
 pub fn update_transforms(mut query: Query<
-    (&mut Transform, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&BloodPool>),
+    (&mut Transform, &DisplayLayer, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&Flying>),
     Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>
 >) {
-    for (mut transform, position_option, angle_option, parent_option, holding_info_option, blood_pool_option) in query.iter_mut() {
+    for (mut transform, display_layer, position_option, angle_option, parent_option, holding_info_option, flying_option) in query.iter_mut() {
         if parent_option.is_some() {
             let holding_info = holding_info_option.unwrap();
             transform.translation = Vec3::new(holding_info.held_distance, 0.0, 0.0);
@@ -44,9 +45,12 @@ pub fn update_transforms(mut query: Query<
             transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
             transform.rotation = Quat::from_rotation_z(angle);
         }
-        if blood_pool_option.is_some() {
-            transform.translation.z = -1.0;
+        transform.translation.z = *display_layer as u32 as f32;
+        if flying_option.is_some() {
+            // transform.translation.z += mem::variant_count::<DisplayLayer>();
+            transform.translation.z += DisplayLayer::LayerCount as u32 as f32;
         }
+        transform.translation.z *= 1.1; // Blood pools don't appear on the background without a small boost to z
     }
 }
 

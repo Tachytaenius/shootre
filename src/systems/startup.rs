@@ -3,6 +3,7 @@ use crate::util::*;
 use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use bevy_ecs_tilemap::prelude::*;
 
 pub fn spawn_camera (mut commands: Commands) {
     commands.spawn(
@@ -57,7 +58,8 @@ pub fn spawn_player(
                 ..default()
             },
             Fill::color(Color::WHITE),
-            Stroke::new(Color::WHITE, 1.0)
+            Stroke::new(Color::WHITE, 1.0),
+            DisplayLayer::Actors
         ),
         Player,
         Will {..default()},
@@ -104,7 +106,8 @@ pub fn spawn_other(
                 ..default()
             },
             Fill::color(Color::GRAY),
-            Stroke::new(Color::GRAY, 1.0)
+            Stroke::new(Color::GRAY, 1.0),
+            DisplayLayer::Items
         ),
         Grounded {
             standing: false,
@@ -147,7 +150,8 @@ pub fn spawn_other(
                 ..default()
             },
             Fill::color(Color::GRAY),
-            Stroke::new(Color::GRAY, 1.0)
+            Stroke::new(Color::GRAY, 1.0),
+            DisplayLayer::Items
         ),
         Grounded {
             standing: false,
@@ -212,7 +216,8 @@ pub fn spawn_other(
                 ..default()
             },
             Fill::color(Color::WHITE),
-            Stroke::new(Color::WHITE, 1.0)
+            Stroke::new(Color::WHITE, 1.0),
+            DisplayLayer::Actors
         ),
         Will {..default()},
         Grounded {
@@ -254,4 +259,45 @@ pub fn spawn_dots(
             Stroke::new(Color::WHITE, 1.0)
         ));
     }
+}
+
+pub fn spawn_tilemap(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    array_texture_loader: Res<ArrayTextureLoader>
+) {
+    let texture_handle: Handle<Image> = asset_server.load("tiles.png");
+    let map_size = TilemapSize {x: 20, y: 20};
+    let tilemap_entity = commands.spawn(
+        DisplayLayer::Background
+    ).id();
+    let mut tile_storage = TileStorage::empty(map_size);
+    for x in 0..map_size.x {
+        for y in 0..map_size.y {
+            let tile_position = TilePos {x, y};
+            let tile_entity = commands.spawn(TileBundle {
+                position: tile_position,
+                tilemap_id: TilemapId(tilemap_entity),
+                ..Default::default()
+            }).id();
+            tile_storage.set(&tile_position, tile_entity);
+        }
+    }
+    let tile_size = TilemapTileSize {x: 8.0, y: 8.0};
+    let grid_size = tile_size.into();
+    let map_type = TilemapType::default();
+    commands.entity(tilemap_entity).insert(TilemapBundle {
+        grid_size,
+        map_type,
+        size: map_size,
+        storage: tile_storage,
+        texture: TilemapTexture::Single(texture_handle),
+        tile_size,
+        ..Default::default()
+    });
+    array_texture_loader.add(TilemapArrayTexture {
+        texture: TilemapTexture::Single(asset_server.load("tiles.png")),
+        tile_size,
+        ..Default::default()
+    });
 }

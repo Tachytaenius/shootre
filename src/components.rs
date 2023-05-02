@@ -158,3 +158,15 @@ pub struct Gib;
 
 #[derive(Component)]
 pub struct Gibbable;
+
+#[derive(Component, Clone, Copy)]
+pub enum DisplayLayer {
+    Background,
+    BloodPools,
+    Gibs,
+    Items,
+    Projectiles,
+    Actors,
+
+    LayerCount // Keep this last and remove it if mem::variant_count leaves nightly
+}

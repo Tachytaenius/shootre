@@ -6,6 +6,7 @@ mod util;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use bevy_ecs_tilemap::prelude::*;
 use systems::*;
 
 fn main() {
@@ -24,14 +25,19 @@ fn main() {
     let mut app = App::new();
 
     app // TODO: Work out deterministic-but-still-parallelised system order
-        .add_plugins(DefaultPlugins)
+        .add_plugins(
+            DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+        )
         .add_plugin(ShapePlugin)
+        .add_plugin(TilemapPlugin)
         .insert_resource(ClearColor(Color::BLACK))
 
         .add_startup_system(startup::spawn_camera)
         .add_startup_system(startup::spawn_player)
         .add_startup_system(startup::spawn_other)
         .add_startup_system(startup::spawn_dots)
+        .add_startup_system(startup::spawn_tilemap)
 
         .add_systems((
             pre_update::store_previous_position,

@@ -26,11 +26,14 @@ pub fn follow_player(
     }
 }
 
-pub fn update_transforms(mut query: Query<
-    (&mut Transform, &DisplayLayer, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&Flying>),
-    Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>
->) {
-    for (mut transform, display_layer, position_option, angle_option, parent_option, holding_info_option, flying_option) in query.iter_mut() {
+pub fn update_transforms(
+    mut main_query: Query<
+        (&mut Transform, &DisplayLayer, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&Flying>),
+        Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>
+    >,
+    parent_query: Query<(&DisplayLayer, Option<&Flying>)>
+) {
+    for (mut transform, display_layer, position_option, angle_option, parent_option, holding_info_option, flying_option) in main_query.iter_mut() {
         if parent_option.is_some() {
             let holding_info = holding_info_option.unwrap();
             transform.translation = Vec3::new(holding_info.held_distance, 0.0, 0.0);
@@ -45,12 +48,26 @@ pub fn update_transforms(mut query: Query<
             transform.translation = Vec3::new(position.value.x, position.value.y, 0.0);
             transform.rotation = Quat::from_rotation_z(angle);
         }
+
+        // Layering
         transform.translation.z = *display_layer as u32 as f32;
         if flying_option.is_some() {
             // transform.translation.z += mem::variant_count::<DisplayLayer>();
             transform.translation.z += DisplayLayer::LayerCount as u32 as f32;
         }
         transform.translation.z *= 1.1; // Blood pools don't appear on the background without a small boost to z
+        // Calculate parent's z and compensate for it
+        // This only works because parent-child hierarchies are limited such that no entity may have both a parent and children
+        if let Some(parent) = parent_option {
+            let (parent_display_layer, parent_flying_option) = parent_query.get(parent.get()).unwrap();
+            let mut parent_transform_z = *parent_display_layer as u32 as f32;
+            if parent_flying_option.is_some() {
+                // parent_transform_z += mem::variant_count::<DisplayLayer>();
+                parent_transform_z += DisplayLayer::LayerCount as u32 as f32;
+            }
+            parent_transform_z *= 1.1;
+            transform.translation.z -= parent_transform_z;
+        }
     }
 }
 

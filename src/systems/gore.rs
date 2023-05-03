@@ -50,7 +50,7 @@ fn gib(
 			ContainedBlood {
 				leak_amount: blood_amount / 40.0,
 				drip_time: 0.05,
-				drip_time_minimum_multiplier: 0.75,
+				drip_time_minimum_multiplier: 0.0, // At 0 so that massive gore explosions have more continuous blood drips near the origin
 				floor_smear_drip_timer_speed_multiplier: 3.0,
 				drip_amount_multiplier: 0.005,
 				colour: blood_colour,

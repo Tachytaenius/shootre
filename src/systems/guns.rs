@@ -159,7 +159,10 @@ pub fn guns(
                         FlyingRecoveryRate {value: flying_recovery_rate},
                         TracedLine,
                         SpawnedMidTick {when: current_time / target_time},
-                        DisplayLayer::Projectiles
+                        DisplayLayer {
+                            index: DisplayLayerIndex::Projectiles,
+                            flying: false
+                        }
                     ));
                 }
             } else {

@@ -7,7 +7,9 @@ mod util;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
+use extol_sprite_layer::SpriteLayerPlugin;
 use systems::*;
+use components::*;
 
 fn main() {
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
@@ -31,6 +33,7 @@ fn main() {
         )
         .add_plugin(ShapePlugin)
         .add_plugin(TilemapPlugin)
+        .add_plugin(SpriteLayerPlugin::<DisplayLayer>::default())
         .insert_resource(ClearColor(Color::BLACK))
 
         .add_startup_system(startup::spawn_camera)

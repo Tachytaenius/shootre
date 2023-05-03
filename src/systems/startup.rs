@@ -59,7 +59,10 @@ pub fn spawn_player(
             },
             Fill::color(Color::WHITE),
             Stroke::new(Color::WHITE, 1.0),
-            DisplayLayer::Actors
+            DisplayLayer {
+                index: DisplayLayerIndex::Actors,
+                flying: false
+            }
         ),
         Player,
         Will {..default()},
@@ -107,7 +110,10 @@ pub fn spawn_other(
             },
             Fill::color(Color::GRAY),
             Stroke::new(Color::GRAY, 1.0),
-            DisplayLayer::Items
+            DisplayLayer {
+                index: DisplayLayerIndex::Items,
+                flying: false
+            }
         ),
         Grounded {
             standing: false,
@@ -151,7 +157,10 @@ pub fn spawn_other(
             },
             Fill::color(Color::GRAY),
             Stroke::new(Color::GRAY, 1.0),
-            DisplayLayer::Items
+            DisplayLayer {
+                index: DisplayLayerIndex::Items,
+                flying: false
+            }
         ),
         Grounded {
             standing: false,
@@ -217,7 +226,10 @@ pub fn spawn_other(
             },
             Fill::color(Color::WHITE),
             Stroke::new(Color::WHITE, 1.0),
-            DisplayLayer::Actors
+            DisplayLayer {
+                index: DisplayLayerIndex::Actors,
+                flying: false
+            }
         ),
         Will {..default()},
         Grounded {
@@ -269,7 +281,10 @@ pub fn spawn_tilemap(
     let texture_handle: Handle<Image> = asset_server.load("tiles.png");
     let map_size = TilemapSize {x: 20, y: 20};
     let tilemap_entity = commands.spawn(
-        DisplayLayer::Background
+        DisplayLayer {
+            index: DisplayLayerIndex::Background,
+            flying: false
+        }
     ).id();
     let mut tile_storage = TileStorage::empty(map_size);
     for x in 0..map_size.x {

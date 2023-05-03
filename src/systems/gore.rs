@@ -34,7 +34,10 @@ fn gib(
 		let gib_velocity = velocity + gibbing_velocity + random_in_shape::circle(&mut rng, gib_velocity_variation);
 		// Based on reground threshold, flying or floored is then added
 		let gib = commands.spawn((
-			DisplayLayer::Gibs,
+			DisplayLayer {
+                index: DisplayLayerIndex::Gibs,
+                flying: false
+            },
 			Position {value: position},
 			PreviousPosition {value: position},
 			Velocity {value: gib_velocity},
@@ -194,7 +197,10 @@ pub fn blood_loss(
 					},
 					Fill::color(Color::NONE), // Ditto
 					Stroke::new(Color::NONE, 1.0), // Ditto
-					DisplayLayer::BloodPools
+					DisplayLayer {
+						index: DisplayLayerIndex::BloodPools,
+						flying: false
+					}
 				));
 			}
 		}
@@ -224,7 +230,10 @@ pub fn blood_loss(
 					},
 					Fill::color(Color::NONE), // Ditto
 					Stroke::new(Color::NONE, 1.0), // Ditto
-					DisplayLayer::BloodPools
+					DisplayLayer {
+						index: DisplayLayerIndex::BloodPools,
+						flying: false
+					}
 				)); 
 			}
 		}

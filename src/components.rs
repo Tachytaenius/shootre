@@ -1,5 +1,6 @@
 use std::f32::consts::TAU;
 use bevy::prelude::*;
+use extol_sprite_layer::LayerIndex;
 
 #[derive(Component)]
 pub struct Position {pub value: Vec2}
@@ -159,8 +160,14 @@ pub struct Gib;
 #[derive(Component)]
 pub struct Gibbable;
 
-#[derive(Component, Clone, Copy)]
-pub enum DisplayLayer {
+#[derive(Component, Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct DisplayLayer {
+    pub index: DisplayLayerIndex,
+    pub flying: bool
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum DisplayLayerIndex {
     Background,
     BloodPools,
     Gibs,
@@ -169,4 +176,15 @@ pub enum DisplayLayer {
     Actors,
 
     LayerCount // Keep this last and remove it if mem::variant_count leaves nightly
+}
+
+impl LayerIndex for DisplayLayer {
+    fn as_z_coordinate(&self) -> f32 {
+        let mut z = (*self).index as u32 as f32;
+        if self.flying {
+            z += DisplayLayerIndex::LayerCount as u32 as f32;
+        }
+        z *= 1.1; // To match what happens to non-sprites
+        return z;
+    }
 }

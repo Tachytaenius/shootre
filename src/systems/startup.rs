@@ -71,15 +71,15 @@ pub fn spawn_player(
             floored_recovery_timer: None
         },
         ContainedBlood {
-            leak_amount: 0.0,
+            leak_amount: 10.0,
             drip_time: 0.1,
             drip_time_minimum_multiplier: 0.75,
             floor_smear_drip_timer_speed_multiplier: 3.0,
-            drip_amount_multiplier: 0.005,
             amount: 100.0,
             colour: Color::RED,
 
-            drip_timer: 0.5
+            drip_timer: 0.5,
+            amount_to_drip: 0.0
         },
         Hits {value: Vec::<Hit>::new()},
         Gibbable,
@@ -244,11 +244,11 @@ pub fn spawn_other(
             drip_time: 0.1,
             drip_time_minimum_multiplier: 0.75,
             floor_smear_drip_timer_speed_multiplier: 3.0,
-            drip_amount_multiplier: 0.005,
             amount: 1000.0,
             colour: Color::RED,
 
-            drip_timer: 0.5
+            drip_timer: 0.5,
+            amount_to_drip: 0.0
         },
         Hits {value: Vec::<Hit>::new()},
         Gibbable,

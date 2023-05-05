@@ -33,6 +33,7 @@ fn gib(
 	for _ in 0..gib_count {
 		let gib_velocity = velocity + gibbing_velocity + random_in_shape::circle(&mut rng, gib_velocity_variation);
 		// Based on reground threshold, flying or floored is then added
+		let drip_time = 0.05;
 		let gib = commands.spawn((
 			DisplayLayer {
                 index: DisplayLayerIndex::Gibs,
@@ -48,15 +49,15 @@ fn gib(
 				solid: false
 			},
 			ContainedBlood {
-				leak_amount: blood_amount / 40.0,
-				drip_time: 0.05,
+				leak_amount: blood_amount / 100.0,
+				drip_time: drip_time,
 				drip_time_minimum_multiplier: 0.0, // At 0 so that massive gore explosions have more continuous blood drips near the origin
 				floor_smear_drip_timer_speed_multiplier: 3.0,
-				drip_amount_multiplier: 0.005,
 				colour: blood_colour,
 				amount: blood_amount / gib_count as f32,
 				
-				drip_timer: 0.0
+				drip_timer: 0.0,
+				amount_to_drip: drip_time // For the initial drip, act like the drip time was multiplied by 1, not something lower
 			},
 			Gib,
 			ShapeBundle {
@@ -182,8 +183,9 @@ pub fn blood_loss(
 		}
 		if contained_blood.drip_timer <= 0.0 {
 			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied like this to stagger the drips
+			contained_blood.amount_to_drip = contained_blood.leak_amount * contained_blood.drip_timer;
 			if !pooling { // Actually do something with the drip timer going down
-				let blood_transfer = (contained_blood.drip_amount_multiplier * contained_blood.leak_amount).min(contained_blood.amount);
+				let blood_transfer = contained_blood.amount_to_drip.min(contained_blood.amount);
 				contained_blood.amount -= blood_transfer;
 				commands.spawn((
 					Position {value: previous_position.lerp(position.value, rng.gen_range(0.0..1.0))}, // Lerped so that you don't see collected circles of blood drips in extreme hit-by-a-train gibbing scenarios

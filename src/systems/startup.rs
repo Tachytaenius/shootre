@@ -81,6 +81,7 @@ pub fn spawn_player(
 
             drip_timer: 0.5
         },
+        Hits {value: Vec::<Hit>::new()},
         Gibbable,
         Holder {pick_up_range: 20.0}
     ));
@@ -125,6 +126,7 @@ pub fn spawn_other(
             projectile_spread: Vec2::new(0.05, 0.05),
             projectile_count: 25,
             projectile_colour: Color::YELLOW,
+            projectile_mass: 0.001,
             muzzle_distance: 5.0,
             cooldown: 1.0,
             auto: false,
@@ -172,6 +174,7 @@ pub fn spawn_other(
             projectile_spread: Vec2::new(0.005, 0.005),
             projectile_count: 1,
             projectile_colour: Color::YELLOW,
+            projectile_mass: 0.025,
             muzzle_distance: 7.0,
             cooldown: 0.1,
             auto: true,
@@ -183,7 +186,7 @@ pub fn spawn_other(
         Holdable
     ));
 
-    let position = Vec2::new(0.0, 100.0);
+    let position = Vec2::new(-100.0, 100.0);
     let angle = 0.0;
     commands.spawn((
         ( // Nested to get around bundle size limit
@@ -247,6 +250,7 @@ pub fn spawn_other(
 
             drip_timer: 0.5
         },
+        Hits {value: Vec::<Hit>::new()},
         Gibbable,
         Holder {pick_up_range: 20.0}
     ));

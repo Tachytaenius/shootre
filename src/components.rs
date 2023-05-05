@@ -82,6 +82,7 @@ pub struct Gun {
     pub projectile_count: u32,
     pub muzzle_distance: f32,
     pub projectile_colour: Color,
+    pub projectile_mass: f32,
     pub cooldown: f32,
     pub auto: bool,
 
@@ -91,7 +92,10 @@ pub struct Gun {
 }
 
 #[derive(Component)]
-pub struct TracedLine;
+pub struct TracedLine; // For rendering
+
+#[derive(Component)]
+pub struct GunProjectile; // For collision detection
 
 #[derive(Component)]
 pub struct ProjectileColour {pub value: Color}
@@ -160,6 +164,9 @@ pub struct Gib;
 #[derive(Component)]
 pub struct Gibbable;
 
+#[derive(Component)]
+pub struct ToGib;
+
 #[derive(Component, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DisplayLayer {
     pub index: DisplayLayerIndex,
@@ -188,3 +195,17 @@ impl LayerIndex for DisplayLayer {
         return z;
     }
 }
+
+pub struct Hit {
+    pub entry_point: Vec2, // Relative to Position
+    pub force: Vec2, // Applied directly, entry_point's position has already made a difference to the force
+    pub damage: f32
+}
+
+#[derive(Component)]
+pub struct Hits {
+    pub value: Vec<Hit>
+}
+
+#[derive(Component)]
+pub struct DestroyedButRender;

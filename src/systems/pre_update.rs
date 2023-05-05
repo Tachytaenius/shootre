@@ -37,3 +37,18 @@ pub fn clear_wills(
         commands.entity(entity).insert(Will {..default()});
     }
 }
+
+pub fn remove_destroyed_but_rendered_entities(
+    mut commands: Commands,
+    query: Query<Entity, With<DestroyedButRender>>
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+pub fn remove_hits(mut query: Query<&mut Hits>) {
+    for mut hits in query.iter_mut() {
+        hits.value.clear();
+    }
+}

@@ -1,5 +1,6 @@
 use crate::components::*;
 use crate::util::*;
+use crate::util::collision_detection;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
@@ -11,7 +12,7 @@ fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldow
     *cooldown -= delta;
 }
 
-pub fn guns(
+pub fn tick_guns(
     mut commands: Commands,
     mut gun_query: Query<(
         &mut Gun,
@@ -148,16 +149,20 @@ pub fn guns(
                         projectile_velocity = projectile_velocity.normalize() * new_speed;
                     }
 
+                    // No need to simulate collision detection here as it is done immediately using PreviousPosition
+
                     commands.spawn((
                         Position {value: projectile_position},
                         PreviousPosition {value: projectile_origin},
                         Velocity {value: projectile_velocity},
+                        Mass {value: gun.projectile_mass},
                         ShapeBundle {..default()},
                         Stroke::new(gun.projectile_colour, 1.0), // Gets immediately overwritten by a version with calculated alpha by rebuild_traced_shape
                         ProjectileColour {value: gun.projectile_colour},
                         Flying,
                         FlyingRecoveryRate {value: flying_recovery_rate},
                         TracedLine,
+                        GunProjectile,
                         SpawnedMidTick {when: current_time / target_time},
                         DisplayLayer {
                             index: DisplayLayerIndex::Projectiles,
@@ -169,6 +174,72 @@ pub fn guns(
                 // If we're not shooting (or gun.cooldown_timer failed to reach 0 before current_time reached target_time)
                 break;
             }
+        }
+    }
+}
+
+pub fn detect_hits( // TODO: Tilemap hits
+    mut commands: Commands,
+    mut projectile_query: Query<(Entity, &mut Position, &PreviousPosition, &Velocity, &Mass), (With<GunProjectile>, Without<DestroyedButRender>)>,
+    mut target_query: Query<(&Position, &Collider, &mut Hits), Without<GunProjectile>>
+) {
+    // Starts from previous position and goes to current position
+    for (
+        projectile_entity,
+        mut projectile_position,
+        projectile_previous_position,
+        projectile_velocity,
+        projectile_mass
+    ) in projectile_query.iter_mut() {
+        for (
+            target_position,
+            target_collider,
+            mut target_hits
+        ) in target_query.iter_mut() {
+            if !target_collider.solid {
+                continue;
+            }
+
+            let intersections_option = collision_detection::line_circle_intersection(
+                projectile_previous_position.value,
+                projectile_position.value,
+                target_collider.radius,
+                target_position.value
+            );
+            if intersections_option.is_none() {
+                continue;
+            }
+            let (intersection_in, _) = intersections_option.unwrap();
+
+            let entry_wound = if collision_detection::circle_point(target_collider.radius, target_position.value, projectile_previous_position.value) {
+                Some(projectile_previous_position.value)
+            } else if 0.0 <= intersection_in && intersection_in <= 1.0 {
+                Some(projectile_previous_position.value.lerp(projectile_position.value, intersection_in))
+            } else {
+                None
+            };
+            // entry_wound is an option because I was working with an exit_wound option too but removed it. This works fine, so
+            if entry_wound.is_some() {
+                projectile_position.value = entry_wound.unwrap();
+                commands.entity(projectile_entity).insert(DestroyedButRender);
+                target_hits.value.push(Hit {
+                    entry_point: entry_wound.unwrap(),
+                    force: projectile_velocity.value * projectile_mass.value, // Could take code from circle-circle collision resolution for this in a future project if it's more correct
+                    damage: 0.0
+                });
+                break;
+            }
+        }
+    }
+}
+
+pub fn despawn_stationary_projectiles(
+    mut commands: Commands,
+    query: Query<(Entity, &Velocity), With<GunProjectile>>
+) {
+    for (entity, velocity) in query.iter() {
+        if velocity.value.length() == 0.0 {
+            commands.entity(entity).despawn();
         }
     }
 }

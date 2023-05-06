@@ -71,13 +71,13 @@ pub fn spawn_player(
             floored_recovery_timer: None
         },
         ContainedBlood {
-            leak_rate: 0.0,
             drip_time: 0.1,
             drip_time_minimum_multiplier: 0.75,
             smear_drip_time_multiplier: 0.3,
-            amount: 100.0,
             colour: Color::RED,
 
+            leak_rate: 0.0,
+            amount: 1000.0,
             drip_timer: 0.5,
             amount_to_drip: 0.0
         },
@@ -240,13 +240,13 @@ pub fn spawn_other(
             floored_recovery_timer: None
         },
         ContainedBlood {
-            leak_rate: 0.0,
             drip_time: 0.1,
             drip_time_minimum_multiplier: 0.75,
             smear_drip_time_multiplier: 0.3,
-            amount: 1000.0,
             colour: Color::RED,
 
+            leak_rate: 0.0,
+            amount: 1000.0,
             drip_timer: 0.5,
             amount_to_drip: 0.0
         },

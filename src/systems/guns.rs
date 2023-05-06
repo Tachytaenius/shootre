@@ -225,7 +225,8 @@ pub fn detect_hits( // TODO: Tilemap hits
                 target_hits.value.push(Hit {
                     entry_point: entry_wound.unwrap(),
                     force: projectile_velocity.value * projectile_mass.value, // Could take code from circle-circle collision resolution for this in a future project if it's more correct
-                    damage: 0.0
+                    damage: 0.0,
+                    apply_force: true
                 });
                 break;
             }

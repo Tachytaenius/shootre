@@ -70,20 +70,24 @@ pub fn spawn_player(
             standing: true,
             floored_recovery_timer: None
         },
-        ContainedBlood {
-            drip_time: 0.1,
-            drip_time_minimum_multiplier: 0.75,
-            smear_drip_time_multiplier: 0.3,
-            colour: Color::RED,
-            minimum_amount: 100.0,
+        (
+            ContainedBlood {
+                drip_time: 0.1,
+                drip_time_minimum_multiplier: 0.75,
+                smear_drip_time_multiplier: 0.3,
+                colour: Color::RED,
+                minimum_amount: 100.0,
 
-            leak_rate: 0.0,
-            amount: 1000.0,
-            drip_timer: 0.5,
-            amount_to_drip: 0.0
-        },
-        Hits {value: Vec::<Hit>::new()},
-        Gibbable,
+                leak_rate: 0.0,
+                amount: 1000.0,
+                drip_timer: 0.5,
+                amount_to_drip: 0.0
+            },
+            Hits {value: Vec::<Hit>::new()},
+            Gibbable,
+            GibForceThreshold {value: 400000.0},
+            HitForceThreshold {value: 40000.0}
+        ),
         Holder {pick_up_range: 20.0}
     ));
 }
@@ -187,6 +191,28 @@ pub fn spawn_other(
         Holdable
     ));
 
+    // Giant mass to gib with
+    // commands.spawn((
+    //     Position {value: Vec2::new(-100.0, 10000.0)},
+    //     Velocity {value: Vec2::new(0.0, -4000.0)},
+    //     Collider {
+    //         radius: 100.0,
+    //         solid: true
+    //     },
+    //     Mass {value: 1000.0},
+    //     Restitution {value: 1.0},
+    //     ShapeBundle {
+    //         // Path is created by rebuild_collider_shape before rendering
+    //         ..default()
+    //     },
+    //     Fill::color(Color::WHITE),
+    //     Stroke::new(Color::WHITE, 1.0),
+    //     DisplayLayer {
+    //         index: DisplayLayerIndex::Actors,
+    //         flying: false
+    //     }
+    // ));
+
     let position = Vec2::new(-100.0, 100.0);
     let angle = 0.0;
     commands.spawn((
@@ -240,20 +266,24 @@ pub fn spawn_other(
             standing: true,
             floored_recovery_timer: None
         },
-        ContainedBlood {
-            drip_time: 0.1,
-            drip_time_minimum_multiplier: 0.75,
-            smear_drip_time_multiplier: 0.3,
-            colour: Color::RED,
-            minimum_amount: 100.0,
+        (
+            ContainedBlood {
+                drip_time: 0.1,
+                drip_time_minimum_multiplier: 0.75,
+                smear_drip_time_multiplier: 0.3,
+                colour: Color::RED,
+                minimum_amount: 100.0,
 
-            leak_rate: 0.0,
-            amount: 1000.0,
-            drip_timer: 0.5,
-            amount_to_drip: 0.0
-        },
-        Hits {value: Vec::<Hit>::new()},
-        Gibbable,
+                leak_rate: 0.0,
+                amount: 1000.0,
+                drip_timer: 0.5,
+                amount_to_drip: 0.0
+            },
+            Hits {value: Vec::<Hit>::new()},
+            Gibbable,
+            GibForceThreshold {value: 400000.0},
+            HitForceThreshold {value: 4000.0}
+        ),
         Holder {pick_up_range: 20.0}
     ));
 }

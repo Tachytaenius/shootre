@@ -3,7 +3,7 @@ use crate::util::*;
 use bevy::prelude::*;
 
 pub fn collision(
-    mut collider_query: Query<(&Collider, &Position, &mut Velocity, Option<&Mass>, Option<&Restitution>, Option<&Children>)>,
+    mut collider_query: Query<(&Collider, &Position, &mut Velocity, Option<&Mass>, Option<&Restitution>, Option<&Children>, Option<(&mut Hits, &HitForceThreshold)>)>,
     child_mass_query: Query<&Mass>
 ) {
     let mut combinations = collider_query.iter_combinations_mut();
@@ -14,14 +14,16 @@ pub fn collision(
             mut a_velocity,
             a_mass_option,
             a_restitution_option,
-            a_children_option
+            a_children_option,
+            a_hit_related_option
         ), (
             b_collider,
             b_position,
             mut b_velocity,
             b_mass_option,
             b_restitution_option,
-            b_children_option
+            b_children_option,
+            b_hit_related_option
         )
     ]) = combinations.fetch_next() {
         if !(a_collider.solid && b_collider.solid) {
@@ -74,10 +76,35 @@ pub fn collision(
                 b_restitution = DEFAULT_RESTITUTION;
             }
 
-            (a_velocity.value, b_velocity.value) = collision_resolution::circle_circle(
-                 a_position.value, a_velocity.value, a_mass, a_restitution,
+            let (a_acceleration, b_acceleration) = collision_resolution::circle_circle(
+                a_position.value, a_velocity.value, a_mass, a_restitution,
                 b_position.value, b_velocity.value, b_mass, b_restitution
             );
+
+            a_velocity.value += a_acceleration;
+            if let Some((mut a_hits, a_hit_force_threshold)) = a_hit_related_option {
+                let a_force = a_acceleration * a_mass;
+                if a_force.length() >= a_hit_force_threshold.value {
+                    a_hits.value.push(Hit {
+                        entry_point: Vec2::ZERO, // TODO
+                        force: a_force,
+                        damage: 0.0, // TODO
+                        apply_force: false
+                    });
+                }
+            }
+            b_velocity.value += b_acceleration;
+            if let Some((mut b_hits, b_hit_force_threshold)) = b_hit_related_option {
+                let b_force = b_acceleration * b_mass;
+                if b_force.length() >= b_hit_force_threshold.value {
+                    b_hits.value.push(Hit {
+                        entry_point: Vec2::ZERO, // TODO
+                        force: b_force,
+                        damage: 0.0, // TODO
+                        apply_force: false
+                    });
+                }
+            }
         }
     }
 }

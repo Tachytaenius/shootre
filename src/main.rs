@@ -67,11 +67,7 @@ fn main() {
         .add_system(apply_system_buffers.after(guns::tick_guns).before(guns::detect_hits)) // So that detect_hits sees projectiles spawned this tick, in case they're shot inside a collider
         .add_systems((
             guns::detect_hits.before(physics::collision),
-            physics::collision.before(gore::gibbing)
-        ).in_set(MainSet))
-        .add_system(apply_system_buffers.after(physics::collision).before(gore::gibbing)) // So that gibbing has access to ToGib components (TODO: makg process_hits responsible for gibbing)
-        .add_systems((
-            gore::gibbing.before(gore::blood_loss),
+            physics::collision.before(gore::blood_loss),
             gore::blood_loss.before(physics::manage_flyers),
             physics::manage_flyers.before(physics::manage_flooreds),
             physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero

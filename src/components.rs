@@ -165,9 +165,6 @@ pub struct Gib;
 #[derive(Component)]
 pub struct Gibbable;
 
-#[derive(Component)]
-pub struct ToGib;
-
 #[derive(Component, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct DisplayLayer {
     pub index: DisplayLayerIndex,
@@ -200,7 +197,8 @@ impl LayerIndex for DisplayLayer {
 pub struct Hit {
     pub entry_point: Vec2, // Relative to Position
     pub force: Vec2, // Applied directly, entry_point's position has already made a difference to the force
-    pub damage: f32
+    pub damage: f32,
+    pub apply_force: bool // False if it has already been applied by collision resolution (kinda spaghetti, other projects may have more proper systems)
 }
 
 #[derive(Component)]
@@ -210,3 +208,9 @@ pub struct Hits {
 
 #[derive(Component)]
 pub struct DestroyedButRender;
+
+#[derive(Component)]
+pub struct HitForceThreshold {pub value: f32}
+
+#[derive(Component)]
+pub struct GibForceThreshold {pub value: f32}

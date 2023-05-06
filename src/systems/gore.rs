@@ -15,11 +15,10 @@ fn area_to_radius(area: f32) -> f32 {
 
 const GIB_LEAK_RATE_MULTIPLIER: f32 = 0.01;
 
-fn gib(
+pub fn gib( // Not a system
 	commands: &mut Commands,
 	entity_to_gib: Entity,
 	gib_count: u32,
-	gibbing_velocity: Vec2,
 	gib_velocity_variation: f32,
 	radius: f32,
 	blood_amount: f32,
@@ -33,7 +32,7 @@ fn gib(
 	let mut rng = rand::thread_rng();
 	commands.entity(entity_to_gib).despawn();
 	for _ in 0..gib_count {
-		let gib_velocity = velocity + gibbing_velocity + random_in_shape::circle(&mut rng, gib_velocity_variation);
+		let gib_velocity = velocity + random_in_shape::circle(&mut rng, gib_velocity_variation);
 		// Based on reground threshold, flying or floored is then added
 		let drip_time = 0.05;
 		let gib = commands.spawn((
@@ -84,69 +83,6 @@ fn gib(
 		if let Some(restitution) = restitution_option {
 			commands.entity(gib).insert(Mass {value: restitution});
 		}
-	}
-}
-
-pub fn gibbing(
-	keyboard_input: Res<Input<KeyCode>>,
-	mut commands: Commands,
-	gibbable_query: Query<(
-		Entity,
-		&Position,
-		Option<&Velocity>,
-		&Collider,
-		Option<&ContainedBlood>,
-		Option<&Mass>,
-		Option<&Restitution>
-	), (With<Gibbable>, Without<Gib>, Without<Player>)> // Without player is temporary
-) {
-	if !keyboard_input.just_pressed(KeyCode::G) { // TEMP
-		return;
-	}
-	for (
-		entity,
-		position,
-		velocity_option,
-		collider,
-		contained_blood_option,
-		mass_option,
-		restitution_option
-	) in gibbable_query.iter() {
-		let velocity;
-		if let Some(velocity_component) = velocity_option {
-			velocity = velocity_component.value;
-		} else {
-			velocity = Vec2::ZERO;
-		}
-		let blood_amount;
-		let blood_colour;
-		if let Some(contained_blood) = contained_blood_option {
-			blood_amount = contained_blood.amount;
-			blood_colour = contained_blood.colour;
-		} else {
-			blood_amount = 0.0;
-			blood_colour = Color::NONE;
-		}
-		gib(
-			&mut commands,
-			entity,
-			20,
-			Vec2::new(0.0, 0.0),
-			400.0,
-			collider.radius,
-			blood_amount,
-			blood_colour,
-			position.value,
-			velocity,
-			match mass_option {
-				Some(mass_component) => {Some(mass_component.value)},
-				_ => {None}
-			},
-			match restitution_option {
-				Some(restitution_component) => {Some(restitution_component.value)},
-				_ => {None}
-			},
-		);
 	}
 }
 

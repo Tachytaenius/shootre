@@ -3,7 +3,7 @@ use bevy::prelude::*;
 pub fn circle_circle(
     a_position: Vec2, a_velocity: Vec2, a_mass: f32, a_restitution: f32,
     b_position: Vec2, b_velocity: Vec2, b_mass: f32, b_restitution: f32
-) -> (Vec2, Vec2) { // Returns new velocities
+) -> (Vec2, Vec2) { // Returns accelerations
     let restitution = a_restitution.min(b_restitution);
     let direction = (a_position - b_position).normalize();
     let velocity_difference = b_velocity - a_velocity;
@@ -12,9 +12,9 @@ pub fn circle_circle(
         let speed_1 = ((restitution + 1.0) * b_mass * impact_speed) / (a_mass + b_mass);
         let speed_2 = ((restitution + 1.0) * a_mass * impact_speed) / (a_mass + b_mass);
         return (
-            a_velocity + direction * speed_1,
-            b_velocity - direction * speed_2
+            direction * speed_1,
+            -direction * speed_2
         );
     }
-    return (a_velocity, b_velocity);
+    return (Vec2::ZERO, Vec2::ZERO);
 }

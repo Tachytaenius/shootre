@@ -234,7 +234,7 @@ pub fn blood_loss(
 			}
 			// Set blood to drip an amount consistent with leak_time (which is in units per second) for when the timer next reaches 0
 			// I believe this better approximates a perfect adherence to leak_amount with arbitrary switching between pooling and dripping the smaller the length of a tick is
-			// So it's a good enough solution for my tastes
+			// So it's a good enough solution for this project
 			contained_blood.amount_to_drip = contained_blood.leak_rate * contained_blood.drip_timer;
 		}
 		if pooling {

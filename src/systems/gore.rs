@@ -162,6 +162,7 @@ pub fn spawn_blood_pool( // Not a system
 	position: Vec2,
 	colour: Color
 ) {
+	debug_assert!(area > 0.0);
 	commands.spawn((
 		Position {value: position},
 		BloodPool {

@@ -13,6 +13,8 @@ fn area_to_radius(area: f32) -> f32 {
 	(area / (TAU / 2.0)).sqrt()
 }
 
+const GIB_LEAK_AMOUNT_MULTIPLIER: f32 = 0.01;
+
 fn gib(
 	commands: &mut Commands,
 	entity_to_gib: Entity,
@@ -49,7 +51,7 @@ fn gib(
 				solid: false
 			},
 			ContainedBlood {
-				leak_amount: blood_amount / 100.0,
+				leak_amount: blood_amount * GIB_LEAK_AMOUNT_MULTIPLIER,
 				drip_time: drip_time,
 				drip_time_minimum_multiplier: 0.0, // At 0 so that massive gore explosions have more continuous blood drips near the origin
 				floor_smear_drip_timer_speed_multiplier: 3.0,

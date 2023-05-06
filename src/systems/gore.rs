@@ -186,13 +186,6 @@ pub fn blood_loss(
 		// The timer operates regardless as to whether we're pooling or dripping
 		contained_blood.drip_timer -= time.delta_seconds();
 		if contained_blood.drip_timer <= 0.0 {
-			// Reset timer
-			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied by random to stagger the drips
-			if smearing {
-				contained_blood.drip_timer *= contained_blood.smear_drip_time_multiplier;
-			}
-			// Set blood to drip an amount consistent with leak_time (which is in units per second) when the timer reaches 0
-			contained_blood.amount_to_drip = contained_blood.leak_rate * contained_blood.drip_timer;
 			// If dripping, actually do something in the world with the drip timer reaching 0
 			if !pooling {
 				let blood_transfer = get_blood_transfer(
@@ -219,6 +212,15 @@ pub fn blood_loss(
 					}
 				));
 			}
+			// Reset timer. This comes after dripping because amount_to_drip from previous timer reset must be used before being overwritten
+			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied by random to stagger the drips
+			if smearing {
+				contained_blood.drip_timer *= contained_blood.smear_drip_time_multiplier;
+			}
+			// Set blood to drip an amount consistent with leak_time (which is in units per second) for when the timer next reaches 0
+			// I believe this better approximates a perfect adherence to leak_amount with arbitrary switching between pooling and dripping the smaller the length of a tick is
+			// So it's a good enough solution for my tastes
+			contained_blood.amount_to_drip = contained_blood.leak_rate * contained_blood.drip_timer;
 		}
 		if pooling {
 			// Look for a near-enough blood pool to leak into or create one if not present

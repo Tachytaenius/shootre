@@ -54,7 +54,7 @@ fn gib(
 				leak_amount: blood_amount * GIB_LEAK_AMOUNT_MULTIPLIER,
 				drip_time: drip_time,
 				drip_time_minimum_multiplier: 0.0, // At 0 so that massive gore explosions have more continuous blood drips near the origin
-				floor_smear_drip_timer_speed_multiplier: 3.0,
+				smear_drip_time_multiplier: 0.3,
 				colour: blood_colour,
 				amount: blood_amount / gib_count as f32,
 				
@@ -178,15 +178,18 @@ pub fn blood_loss(
 		let smearing = grounded_option.is_some() && !grounded_option.unwrap().standing; // Rapid "drips"
 		let pooling = velocity.length() == 0.0; // Instead of dripping, just pool on the ground
 
-		if smearing {
-			contained_blood.drip_timer -= time.delta_seconds() * contained_blood.floor_smear_drip_timer_speed_multiplier;
-		} else {
-			contained_blood.drip_timer -= time.delta_seconds();
-		}
+		// The timer operates regardless as to whether we're pooling or dripping
+		contained_blood.drip_timer -= time.delta_seconds();
 		if contained_blood.drip_timer <= 0.0 {
-			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied like this to stagger the drips
+			// Reset timer
+			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied by random to stagger the drips
+			if smearing {
+				contained_blood.drip_timer *= contained_blood.smear_drip_time_multiplier;
+			}
+			// Set blood to drip an amount consistent with leak_time (which is in units per second) when the timer reaches 0
 			contained_blood.amount_to_drip = contained_blood.leak_amount * contained_blood.drip_timer;
-			if !pooling { // Actually do something with the drip timer going down
+			// If dripping, actually do something in the world with the drip timer reaching 0
+			if !pooling {
 				let blood_transfer = contained_blood.amount_to_drip.min(contained_blood.amount);
 				contained_blood.amount -= blood_transfer;
 				commands.spawn((
@@ -209,6 +212,7 @@ pub fn blood_loss(
 			}
 		}
 		if pooling {
+			// Look for a near-enough blood pool to leak into or create one if not present
 			let blood_transfer = (contained_blood.leak_amount * time.delta_seconds()).min(contained_blood.amount);
 			contained_blood.amount -= blood_transfer;
 			let mut found = false;

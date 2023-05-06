@@ -145,6 +145,7 @@ pub struct ContainedBlood {
     pub drip_time_minimum_multiplier: f32, // 1.0 for evenly-spaced-in-time drip events (though the drips will not be evenly-spaced in space as they are created somewhere between previous and last position)
     pub smear_drip_time_multiplier: f32, // When floored but not stationary, how much to multiply drip time (down) by when resetting the timer
     pub colour: Color,
+    pub minimum_amount: f32, // How much to not leak out, so that an entity that has bled out completely and is then gibbed doesn't have bloodless gibs
 
     pub leak_rate: f32,
     pub amount: f32, // Area of blood pool when fully depleted in pixels

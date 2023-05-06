@@ -75,6 +75,7 @@ pub fn spawn_player(
             drip_time_minimum_multiplier: 0.75,
             smear_drip_time_multiplier: 0.3,
             colour: Color::RED,
+            minimum_amount: 100.0,
 
             leak_rate: 0.0,
             amount: 1000.0,
@@ -244,6 +245,7 @@ pub fn spawn_other(
             drip_time_minimum_multiplier: 0.75,
             smear_drip_time_multiplier: 0.3,
             colour: Color::RED,
+            minimum_amount: 100.0,
 
             leak_rate: 0.0,
             amount: 1000.0,

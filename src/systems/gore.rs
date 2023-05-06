@@ -51,13 +51,14 @@ fn gib(
 				solid: false
 			},
 			ContainedBlood {
-				leak_rate: blood_amount * GIB_LEAK_RATE_MULTIPLIER,
 				drip_time: drip_time,
 				drip_time_minimum_multiplier: 0.0, // At 0 so that massive gore explosions have more continuous blood drips near the origin
 				smear_drip_time_multiplier: 0.3,
 				colour: blood_colour,
+				minimum_amount: 0.0,
+
+				leak_rate: blood_amount * GIB_LEAK_RATE_MULTIPLIER,
 				amount: blood_amount / gib_count as f32,
-				
 				drip_timer: 0.0,
 				amount_to_drip: drip_time // For the initial drip, act like the drip time was multiplied by 1, not something lower
 			},
@@ -151,6 +152,10 @@ pub fn gibbing(
 
 const STATIONARY_BLOOD_POOL_CLOSENESS_THRESHOLD: f32 = 0.01; // How close a stationary gib must be to a blood pool to claim it
 
+fn get_blood_transfer(blood_amount: f32, minimum_blood_amount: f32, unfiltered_transfer_amount: f32) -> f32 {
+	return unfiltered_transfer_amount.min(blood_amount).min(blood_amount - minimum_blood_amount);
+}
+
 pub fn blood_loss(
 	mut commands: Commands,
 	mut bleeder_query: Query<(&mut ContainedBlood, &Position, Option<&PreviousPosition>, Option<&Velocity>, Option<&Grounded>)>,
@@ -159,7 +164,7 @@ pub fn blood_loss(
 ) {
 	let mut rng = rand::thread_rng();
 	for (mut contained_blood, position, previous_position_option, velocity_option, grounded_option) in bleeder_query.iter_mut() {
-		if contained_blood.amount == 0.0 || contained_blood.leak_rate == 0.0 {
+		if contained_blood.amount == 0.0 || contained_blood.leak_rate == 0.0 || contained_blood.amount <= contained_blood.minimum_amount {
 			continue;
 		}
 
@@ -190,7 +195,11 @@ pub fn blood_loss(
 			contained_blood.amount_to_drip = contained_blood.leak_rate * contained_blood.drip_timer;
 			// If dripping, actually do something in the world with the drip timer reaching 0
 			if !pooling {
-				let blood_transfer = contained_blood.amount_to_drip.min(contained_blood.amount);
+				let blood_transfer = get_blood_transfer(
+					contained_blood.amount,
+					contained_blood.minimum_amount,
+					contained_blood.leak_rate * time.delta_seconds()
+				);
 				contained_blood.amount -= blood_transfer;
 				commands.spawn((
 					Position {value: previous_position.lerp(position.value, rng.gen_range(0.0..1.0))}, // Lerped so that you don't see collected circles of blood drips in extreme hit-by-a-train gibbing scenarios
@@ -213,7 +222,11 @@ pub fn blood_loss(
 		}
 		if pooling {
 			// Look for a near-enough blood pool to leak into or create one if not present
-			let blood_transfer = (contained_blood.leak_rate * time.delta_seconds()).min(contained_blood.amount);
+			let blood_transfer = get_blood_transfer(
+				contained_blood.amount,
+				contained_blood.minimum_amount,
+				contained_blood.leak_rate * time.delta_seconds()
+			);
 			contained_blood.amount -= blood_transfer;
 			let mut found = false;
 			for (mut blood_pool, blood_pool_position) in blood_pool_query.iter_mut() {

@@ -71,7 +71,7 @@ pub fn spawn_player(
             floored_recovery_timer: None
         },
         ContainedBlood {
-            leak_amount: 10.0,
+            leak_amount: 0.0,
             drip_time: 0.1,
             drip_time_minimum_multiplier: 0.75,
             floor_smear_drip_timer_speed_multiplier: 3.0,

@@ -13,7 +13,7 @@ fn area_to_radius(area: f32) -> f32 {
 	(area / (TAU / 2.0)).sqrt()
 }
 
-const GIB_LEAK_AMOUNT_MULTIPLIER: f32 = 0.01;
+const GIB_LEAK_RATE_MULTIPLIER: f32 = 0.01;
 
 fn gib(
 	commands: &mut Commands,
@@ -51,7 +51,7 @@ fn gib(
 				solid: false
 			},
 			ContainedBlood {
-				leak_amount: blood_amount * GIB_LEAK_AMOUNT_MULTIPLIER,
+				leak_rate: blood_amount * GIB_LEAK_RATE_MULTIPLIER,
 				drip_time: drip_time,
 				drip_time_minimum_multiplier: 0.0, // At 0 so that massive gore explosions have more continuous blood drips near the origin
 				smear_drip_time_multiplier: 0.3,
@@ -159,7 +159,7 @@ pub fn blood_loss(
 ) {
 	let mut rng = rand::thread_rng();
 	for (mut contained_blood, position, previous_position_option, velocity_option, grounded_option) in bleeder_query.iter_mut() {
-		if contained_blood.amount == 0.0 || contained_blood.leak_amount == 0.0 {
+		if contained_blood.amount == 0.0 || contained_blood.leak_rate == 0.0 {
 			continue;
 		}
 
@@ -187,7 +187,7 @@ pub fn blood_loss(
 				contained_blood.drip_timer *= contained_blood.smear_drip_time_multiplier;
 			}
 			// Set blood to drip an amount consistent with leak_time (which is in units per second) when the timer reaches 0
-			contained_blood.amount_to_drip = contained_blood.leak_amount * contained_blood.drip_timer;
+			contained_blood.amount_to_drip = contained_blood.leak_rate * contained_blood.drip_timer;
 			// If dripping, actually do something in the world with the drip timer reaching 0
 			if !pooling {
 				let blood_transfer = contained_blood.amount_to_drip.min(contained_blood.amount);
@@ -213,7 +213,7 @@ pub fn blood_loss(
 		}
 		if pooling {
 			// Look for a near-enough blood pool to leak into or create one if not present
-			let blood_transfer = (contained_blood.leak_amount * time.delta_seconds()).min(contained_blood.amount);
+			let blood_transfer = (contained_blood.leak_rate * time.delta_seconds()).min(contained_blood.amount);
 			contained_blood.amount -= blood_transfer;
 			let mut found = false;
 			for (mut blood_pool, blood_pool_position) in blood_pool_query.iter_mut() {

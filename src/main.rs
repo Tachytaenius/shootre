@@ -73,8 +73,8 @@ fn main() {
             physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
             physics::angular_friction, // If hits make you spin, this needs to come before process_hits
             physics::floor_friction.before(physics::tripping),
-            physics::tripping.before(health::process_hits),
-            health::process_hits.before(guns::despawn_stationary_projectiles), // Very small hit forces may be zeroed by walking by the time apply_velocity comes around
+            physics::tripping.before(damage::process_hits),
+            damage::process_hits.before(guns::despawn_stationary_projectiles), // Very small hit forces may be zeroed by walking by the time apply_velocity comes around
             guns::despawn_stationary_projectiles
         ).in_set(MainSet).before(RenderPreparationSet::CommandFlush));
 

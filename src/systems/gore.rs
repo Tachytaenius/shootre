@@ -156,6 +156,31 @@ fn get_blood_transfer(blood_amount: f32, minimum_blood_amount: f32, unfiltered_t
 	return unfiltered_transfer_amount.min(blood_amount).min(blood_amount - minimum_blood_amount);
 }
 
+pub fn spawn_blood_pool( // Not a system
+	commands: &mut Commands,
+	area: f32,
+	position: Vec2,
+	colour: Color
+) {
+	commands.spawn((
+		Position {value: position},
+		BloodPool {
+			colour: colour,
+			area: area
+		},
+		ShapeBundle {
+			// Path is set by rebuild_blood_pool before rendering
+			..default()
+		},
+		Fill::color(Color::NONE), // Ditto
+		Stroke::new(Color::NONE, 1.0), // Ditto
+		DisplayLayer {
+			index: DisplayLayerIndex::BloodPools,
+			flying: false
+		}
+	));
+}
+
 pub fn blood_loss(
 	mut commands: Commands,
 	mut bleeder_query: Query<(&mut ContainedBlood, &Position, Option<&PreviousPosition>, Option<&Velocity>, Option<&Grounded>)>,
@@ -194,23 +219,12 @@ pub fn blood_loss(
 					contained_blood.leak_rate * time.delta_seconds()
 				);
 				contained_blood.amount -= blood_transfer;
-				commands.spawn((
-					Position {value: previous_position.lerp(position.value, rng.gen_range(0.0..1.0))}, // Lerped so that you don't see collected circles of blood drips in extreme hit-by-a-train gibbing scenarios
-					BloodPool {
-						colour: contained_blood.colour,
-						area: blood_transfer
-					},
-					ShapeBundle {
-						// Path is set by rebuild_blood_pool before rendering
-						..default()
-					},
-					Fill::color(Color::NONE), // Ditto
-					Stroke::new(Color::NONE, 1.0), // Ditto
-					DisplayLayer {
-						index: DisplayLayerIndex::BloodPools,
-						flying: false
-					}
-				));
+				spawn_blood_pool(
+					&mut commands,
+					blood_transfer,
+					previous_position.lerp(position.value, rng.gen_range(0.0..1.0)), // Lerped so that you don't see collected circles of blood drips in extreme hit-by-a-train gibbing scenarios
+					contained_blood.colour
+				);
 			}
 			// Reset timer. This comes after dripping because amount_to_drip from previous timer reset must be used before being overwritten
 			contained_blood.drip_timer = contained_blood.drip_time * rng.gen_range(contained_blood.drip_time_minimum_multiplier..=1.0); // Multiplied by random to stagger the drips
@@ -241,23 +255,7 @@ pub fn blood_loss(
 				}
 			}
 			if !found {
-				commands.spawn((
-					Position {value: position.value},
-					BloodPool {
-						colour: contained_blood.colour,
-						area: blood_transfer
-					},
-					ShapeBundle {
-						// Path is set by rebuild_blood_pool before rendering
-						..default()
-					},
-					Fill::color(Color::NONE), // Ditto
-					Stroke::new(Color::NONE, 1.0), // Ditto
-					DisplayLayer {
-						index: DisplayLayerIndex::BloodPools,
-						flying: false
-					}
-				)); 
+				spawn_blood_pool(&mut commands, blood_transfer, position.value, contained_blood.colour);
 			}
 		}
 	}

@@ -16,7 +16,9 @@ fn main() {
     enum PreUpdateSet {Main, CommandFlush}
 
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
-    struct MainSet;
+    struct Wills;
+    #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
+    enum LinearAngular {Locomotion, ApplyVelocity, Friction}
 
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
     struct ConsistentStateChecks;
@@ -26,7 +28,7 @@ fn main() {
 
     let mut app = App::new();
 
-    app // TODO: Work out deterministic-but-still-parallelised system order
+    app
         .add_plugins(
             DefaultPlugins
             .set(ImagePlugin::default_nearest())
@@ -51,42 +53,61 @@ fn main() {
             pre_update::remove_destroyed_but_rendered_entities,
             pre_update::remove_hits
         ).in_set(PreUpdateSet::Main).before(PreUpdateSet::CommandFlush))
-        .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(MainSet))
+        .add_system(apply_system_buffers.in_set(PreUpdateSet::CommandFlush).before(Wills))
 
-        .add_systems((
-            wills::player_input.before(hierarchy::dropping),
-            // wills:ai.before(dropping),
-            hierarchy::dropping.before(hierarchy::picking_up),
-            hierarchy::picking_up.before(locomotion::turning).before(locomotion::walking),
-            locomotion::walking.before(physics::apply_velocity).before(physics::apply_angular_velocity),
-            locomotion::turning.before(physics::apply_velocity).before(physics::apply_angular_velocity),
-            physics::apply_velocity.before(guns::tick_guns),
-            physics::apply_angular_velocity.before(guns::tick_guns),
-            guns::tick_guns.before(guns::detect_hits) // Should come after store_previous_position --> walking --> apply_velocity, and uses previous_position and current velocity as origin of shooting
-        ).in_set(MainSet))
+
+        .add_systems(( // Parallellised
+            wills::player_input,
+            // wills::ai
+        ).in_set(Wills))
+
+        .add_systems(( // Not paralellised
+            hierarchy::dropping,
+            hierarchy::picking_up
+        ).chain().after(Wills).before(LinearAngular::Locomotion))
+
+        .add_systems(( // Parallelised
+            locomotion::walking,
+            locomotion::turning
+        ).in_set(LinearAngular::Locomotion).before(LinearAngular::ApplyVelocity))
+
+        .add_systems(( // Parallelised
+            physics::apply_velocity,
+            physics::apply_angular_velocity
+        ).in_set(LinearAngular::ApplyVelocity))
+
+        // Not parallelised
+        .add_system(guns::tick_guns.after(LinearAngular::ApplyVelocity))
         .add_system(apply_system_buffers.after(guns::tick_guns).before(guns::detect_hits)) // So that detect_hits sees projectiles spawned this tick, in case they're shot inside a collider
         .add_systems((
-            guns::detect_hits.before(physics::collision),
-            physics::collision.before(gore::blood_loss),
-            gore::blood_loss.before(gore::manage_globules),
-            gore::manage_globules.before(physics::manage_flyers)
-        ).in_set(MainSet))
+            guns::detect_hits,
+            physics::collision,
+            gore::blood_loss,
+            gore::manage_globules
+        ).chain())
         .add_system(apply_system_buffers.after(gore::manage_globules).before(physics::manage_flyers)) // So that despawned blood globules won't be acted on (panics otherwise)
         .add_systems((
-            physics::manage_flyers.before(physics::manage_flooreds),
-            physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
-            physics::angular_friction, // If hits make you spin, this needs to come before process_hits
-            physics::floor_friction.before(physics::tripping),
-            physics::tripping.before(damage::process_hits),
-            damage::process_hits.before(guns::despawn_stationary_projectiles), // Very small hit forces may be zeroed by walking by the time apply_velocity comes around
+            physics::manage_flyers,
+            physics::manage_flooreds
+        ).chain().before(LinearAngular::Friction))
+
+        .add_systems(( // Parallelised
+            physics::floor_friction,
+            physics::angular_friction
+        ).in_set(LinearAngular::Friction))
+
+        .add_systems(( // Not parallelised
+            physics::tripping,
+            damage::process_hits,
             guns::despawn_stationary_projectiles
-        ).in_set(MainSet).before(RenderPreparationSet::CommandFlush));
+        ).chain().before(ConsistentStateChecks).after(LinearAngular::Friction).before(RenderPreparationSet::CommandFlush));
+
 
     #[cfg(debug_assertions)]
     app.add_systems((
         physics::check_consistent_grounded_flying_state,
         hierarchy::check_consistent_hierarchy_state
-    ).in_set(ConsistentStateChecks).after(MainSet).before(RenderPreparationSet::CommandFlush));
+    ).in_set(ConsistentStateChecks).before(RenderPreparationSet::CommandFlush));
 
     app
         .add_system(apply_system_buffers.in_set(RenderPreparationSet::CommandFlush).before(RenderPreparationSet::Main))

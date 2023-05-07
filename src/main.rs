@@ -71,7 +71,7 @@ fn main() {
             gore::blood_loss.before(gore::manage_globules),
             gore::manage_globules.before(physics::manage_flyers)
         ).in_set(MainSet))
-        .add_system(apply_system_buffers.after(gore::manage_globules).before(physics::manage_flyers)) // So that despawned blood globules won't be acted on
+        .add_system(apply_system_buffers.after(gore::manage_globules).before(physics::manage_flyers)) // So that despawned blood globules won't be acted on (panics otherwise)
         .add_systems((
             physics::manage_flyers.before(physics::manage_flooreds),
             physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero

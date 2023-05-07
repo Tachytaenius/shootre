@@ -151,21 +151,16 @@ pub fn rebuild_traced_shape(
 
 pub fn rebuild_collider_shape(
     mut commands: Commands,
-    query: Query<(Entity, &Collider, Option<&Angle>), (Changed<Collider>, With<Path>)>
+    query: Query<(Entity, &Collider), (Changed<Collider>, With<Path>)>
 ) {
-    for (entity, collider, angle_option) in query.iter() {
+    for (entity, collider) in query.iter() {
         let circle = shapes::Circle {
             radius: collider.radius,
             ..default()
         };
-        let line_length = if let Some(_) = angle_option {
-            5.0
-        } else {
-            0.0
-        };
         let line = shapes::Line(
             Vec2::new(collider.radius, 0.0),
-            Vec2::new(collider.radius + line_length, 0.0)
+            Vec2::new(collider.radius + 0.5, 0.0)
         );
         commands.entity(entity).insert(GeometryBuilder::new().add(&circle).add(&line).build());
     }

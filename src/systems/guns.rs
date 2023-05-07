@@ -181,7 +181,7 @@ pub fn tick_guns(
     }
 }
 
-const PROJECTILE_BLOOD_LOSS_MULTIPLIER: f32 = 0.5;
+const PROJECTILE_BLOOD_LOSS_MULTIPLIER: f32 = 0.25;
 
 pub fn detect_hits( // TODO: Tilemap hits
     mut commands: Commands,

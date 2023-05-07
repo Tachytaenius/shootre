@@ -14,7 +14,6 @@ fn area_to_radius(area: f32) -> f32 {
 }
 
 const GIB_LEAK_RATE_MULTIPLIER: f32 = 0.01; // Multiplied with blood amount, not leak rate
-const GLOBULE_LEAK_RATE: f32 = 50.0; // Ditto
 
 pub fn gib( // Not a system
 	commands: &mut Commands,
@@ -89,6 +88,7 @@ pub fn gib( // Not a system
 
 const GLOBULE_REGROUND_THRESHOLD: f32 = 0.0;
 const GLOBULE_TRIP_THRESHOLD: f32 = 1.0;
+const GLOBULE_LEAK_RATE: f32 = 0.5;
 
 pub fn spawn_blood_globules( // Not a system
 	commands: &mut Commands,
@@ -102,7 +102,7 @@ pub fn spawn_blood_globules( // Not a system
 	let mut rng = rand::thread_rng();
 	for _ in 0..globule_count {
 		let globule_velocity = velocity + random_in_shape::circle(&mut rng, globule_velocity_variation);
-		let drip_time = 0.001;
+		let drip_time = 0.01;
 		let mut globule_commands = commands.spawn((
 			DisplayLayer {
 				index: DisplayLayerIndex::BloodGlobules,

@@ -53,7 +53,7 @@ pub fn process_hits (
 			}
 			// TODO: do stuff with entry_wound and damage
 			if hit.blood_loss > 0.0 && contained_blood_option.is_some() {
-				let contained_blood = contained_blood_option.as_mut().unwrap();
+				let contained_blood = contained_blood_option.as_deref_mut().unwrap();
 				let blood_transfer = get_blood_transfer(
 					contained_blood.amount,
 					contained_blood.minimum_amount,

@@ -96,9 +96,11 @@ pub fn spawn_other(
     mut commands: Commands
 ) {
     // Shotgun
+    let position = Vec2::new(100.0, 0.0);
     commands.spawn((
         (
-            Position {value: Vec2::new(100.0, 0.0)},
+            Position {value: position},
+            PreviousPosition {value: position},
             Velocity {value: Vec2::ZERO}
         ),
         (
@@ -144,9 +146,11 @@ pub fn spawn_other(
     ));
 
     // Machine gun
+    let position = Vec2::new(100.0, 100.0);
     commands.spawn((
         (
-            Position {value: Vec2::new(100.0, 100.0)},
+            Position {value: position},
+            PreviousPosition {value: position},
             Velocity {value: Vec2::ZERO}
         ),
         (

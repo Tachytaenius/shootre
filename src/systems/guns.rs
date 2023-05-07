@@ -14,20 +14,23 @@ fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldow
 
 pub fn tick_guns(
     mut commands: Commands,
+    // We use previous position/angle here because it fixes a bug where moving while shooting causes bullets to appear in front of you to the side.
+    // This is due to ordering in main.rs. Hopefully I won't come along and break this later. This could be better fixed with a more comprehensive
+    // physics engine model, unless this is the right solution and I don't have the understanding to verify it as such.
     mut gun_query: Query<(
         &mut Gun,
         Option<&Parent>,
         Option<&HoldingInfo>,
-        Option<&Position>,
+        Option<&PreviousPosition>,
         Option<&Velocity>,
-        Option<&Angle>,
+        Option<&PreviousAngle>,
         Option<&AngularVelocity>
     )>,
     holder_query: Query<(
         Option<&Will>,
-        &Position,
+        &PreviousPosition,
         Option<&Velocity>,
-        Option<&Angle>,
+        Option<&PreviousAngle>,
         Option<&AngularVelocity>
     ), With<Children>>,
     time: Res<Time>
@@ -36,9 +39,9 @@ pub fn tick_guns(
         mut gun,
         parent_option,
         holding_info_option,
-        position_option,
+        previous_position_option,
         velocity_option,
-        angle_option,
+        previous_angle_option,
         angular_velocity_option
     ) in gun_query.iter_mut() {
         // If no willed parent, trigger is not depressd, else trigger is depressed depending on will
@@ -53,33 +56,33 @@ pub fn tick_guns(
         }
 
         // Get spatial information from self or parent
-        let position;
+        let position; // Based on previous position
         let velocity;
-        let angle;
+        let angle; // Based on previous angle
         let angular_velocity;
-        // Position is expected, since there is no reasonable default. Panic if not present
+        // PreviousPosition is expected, since there is no reasonable default. Panic if not present
         if let Some(parent) = parent_option {
             let parent_result = holder_query.get(parent.get());
             if let Ok((
                 _,
-                parent_position,
+                parent_previous_position,
                 parent_velocity_option,
-                parent_angle_option,
+                parent_previous_angle_option,
                 parent_angular_velocity_option
             )) = parent_result {
                 let holding_info = holding_info_option.unwrap();
                 let held_distance = holding_info.held_distance;
                 let held_angle = holding_info.held_angle;
                 
-                let parent_position = parent_position.value;
-                let parent_angle;
-                if let Some(parent_angle_component) = parent_angle_option {
-                    parent_angle = parent_angle_component.value;
+                let parent_previous_position = parent_previous_position.value;
+                let parent_previous_angle;
+                if let Some(parent_previous_angle_component) = parent_previous_angle_option {
+                    parent_previous_angle = parent_previous_angle_component.value;
                 } else {
-                    parent_angle = 0.0;
+                    parent_previous_angle = 0.0;
                 }
-                position = parent_position + Vec2::from_angle(parent_angle).rotate(Vec2::new(held_distance, 0.0));
-                angle = parent_angle + held_angle;
+                position = parent_previous_position + Vec2::from_angle(parent_previous_angle).rotate(Vec2::new(held_distance, 0.0));
+                angle = parent_previous_angle + held_angle;
                 if let Some(parent_velocity_component) = parent_velocity_option {
                     velocity = parent_velocity_component.value;
                 } else {
@@ -91,12 +94,12 @@ pub fn tick_guns(
                     angular_velocity = 0.0;
                 }
             } else {
-                panic!(); // Parent does not have position
+                panic!(); // Parent does not have previous position
             }
         } else {
-            position = position_option.unwrap().value; // Position expected to be on the gun itself if there's no parent
-            if let Some(angle_component) = angle_option {
-                angle = angle_component.value;
+            position = previous_position_option.unwrap().value; // Previous position expected to be on the gun itself if there's no parent
+            if let Some(previous_angle_component) = previous_angle_option {
+                angle = previous_angle_component.value;
             } else {
                 angle = 0.0;
             }

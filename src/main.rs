@@ -62,7 +62,7 @@ fn main() {
             locomotion::turning.before(physics::apply_velocity).before(physics::apply_angular_velocity),
             physics::apply_velocity.before(guns::tick_guns),
             physics::apply_angular_velocity.before(guns::tick_guns),
-            guns::tick_guns.before(guns::detect_hits)
+            guns::tick_guns.before(guns::detect_hits) // Should come after store_previous_position --> walking --> apply_velocity, and uses previous_position and current velocity as origin of shooting
         ).in_set(MainSet))
         .add_system(apply_system_buffers.after(guns::tick_guns).before(guns::detect_hits)) // So that detect_hits sees projectiles spawned this tick, in case they're shot inside a collider
         .add_systems((

@@ -126,7 +126,7 @@ pub fn spawn_other(
             floored_recovery_timer: None
         },
         Gun {
-            projectile_speed: 2000.0,
+            projectile_speed: 6000.0,
             projectile_flying_recovery_rate: 500.0,
             projectile_spread: Vec2::new(0.05, 0.05),
             projectile_count: 10,
@@ -135,7 +135,7 @@ pub fn spawn_other(
             muzzle_distance: 5.0,
             cooldown: 1.0,
             auto: false,
-    
+
             cooldown_timer: 0.0,
             trigger_depressed: false,
             trigger_depressed_previous_frame: false
@@ -174,7 +174,7 @@ pub fn spawn_other(
             floored_recovery_timer: None
         },
         Gun {
-            projectile_speed: 2500.0,
+            projectile_speed: 8000.0,
             projectile_flying_recovery_rate: 250.0,
             projectile_spread: Vec2::new(0.005, 0.005),
             projectile_count: 1,

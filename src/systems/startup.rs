@@ -195,6 +195,56 @@ pub fn spawn_other(
         Holdable
     ));
 
+    // Ship cannon
+    let position = Vec2::new(100.0, 200.0);
+    commands.spawn((
+        (
+            Position {value: position},
+            PreviousPosition {value: position},
+            Velocity {value: Vec2::ZERO}
+        ),
+        (
+            Collider {
+                radius: 15.0,
+                solid: false
+            },
+            Mass {value: 100.0},
+            Restitution {value: 0.3},
+            FloorFriction {value: 400.0}
+        ),
+        (
+            ShapeBundle {
+                ..default()
+            },
+            Fill::color(Color::GRAY),
+            Stroke::new(Color::GRAY, 1.0),
+            DisplayLayer {
+                index: DisplayLayerIndex::Items,
+                flying: false
+            }
+        ),
+        Grounded {
+            standing: false,
+            floored_recovery_timer: None
+        },
+        Gun {
+            projectile_speed: 20000.0,
+            projectile_flying_recovery_rate: 250.0,
+            projectile_spread: Vec2::new(0.0, 0.0),
+            projectile_count: 1,
+            projectile_colour: Color::YELLOW,
+            projectile_mass: 30.0,
+            muzzle_distance: 15.0,
+            cooldown: 2.0,
+            auto: false,
+    
+            cooldown_timer: 0.0,
+            trigger_depressed: false,
+            trigger_depressed_previous_frame: false
+        },
+        Holdable
+    ));
+
     // Giant mass to gib with
     // commands.spawn((
     //     Position {value: Vec2::new(-100.0, 10000.0)},

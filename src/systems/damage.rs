@@ -5,11 +5,12 @@ use crate::systems::*;
 use super::gore::get_blood_transfer;
 use super::gore::spawn_blood_globules;
 
-const GIB_VELOCITY_VARIATION_MULTIPLIER: f32 = 0.25;
+const GIB_VELOCITY_VARIATION_MULTIPLIER: f32 = 1.05;
 const GIBS_PER_GIB_FORCE_THRESHOLD_IN_GIB_TOTAL_IMPACT: f32 = 400.0;
 const MAX_GIBS_PER_GIBBING: u32 = 100;
 const GLOBULE_VELOCITY_VARIATION_MULTIPLIER: f32 = 0.2;
 const GLOBULE_SPEED: f32 = 100.0;
+const WOUND_BLOOD_LOSS_MAXIMUM: f32 = 50.0;
 
 pub fn process_hits (
 	mut commands: Commands,
@@ -57,12 +58,12 @@ pub fn process_hits (
 					contained_blood.amount,
 					contained_blood.minimum_amount,
 					hit.blood_loss
-				);
+				).min(WOUND_BLOOD_LOSS_MAXIMUM);
 				contained_blood.amount -= blood_transfer;
 				let globule_velocity = velocity.value - hit.force.normalize_or_zero() * GLOBULE_SPEED;
 				spawn_blood_globules(
 					&mut commands,
-					10,
+					3,
 					globule_velocity.length() * GLOBULE_VELOCITY_VARIATION_MULTIPLIER,
 					blood_transfer,
 					contained_blood.colour,

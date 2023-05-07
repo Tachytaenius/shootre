@@ -89,7 +89,8 @@ pub fn collision(
                         entry_point: Vec2::ZERO, // TODO
                         force: a_force,
                         damage: 0.0, // TODO
-                        apply_force: false
+                        apply_force: false,
+                        blood_loss: 0.0
                     });
                 }
             }
@@ -101,7 +102,8 @@ pub fn collision(
                         entry_point: Vec2::ZERO, // TODO
                         force: b_force,
                         damage: 0.0, // TODO
-                        apply_force: false
+                        apply_force: false,
+                        blood_loss: 0.0
                     });
                 }
             }

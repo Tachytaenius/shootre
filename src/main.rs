@@ -68,7 +68,11 @@ fn main() {
         .add_systems((
             guns::detect_hits.before(physics::collision),
             physics::collision.before(gore::blood_loss),
-            gore::blood_loss.before(physics::manage_flyers),
+            gore::blood_loss.before(gore::manage_globules),
+            gore::manage_globules.before(physics::manage_flyers)
+        ).in_set(MainSet))
+        .add_system(apply_system_buffers.after(gore::manage_globules).before(physics::manage_flyers)) // So that despawned blood globules won't be acted on
+        .add_systems((
             physics::manage_flyers.before(physics::manage_flooreds),
             physics::manage_flooreds.before(physics::floor_friction).before(physics::angular_friction), // This comes before floor_friction so that friction can be skipped in case the timer starts at zero
             physics::angular_friction, // If hits make you spin, this needs to come before process_hits

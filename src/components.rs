@@ -160,6 +160,9 @@ pub struct BloodPool {
 }
 
 #[derive(Component)]
+pub struct BloodGlobule;
+
+#[derive(Component)]
 pub struct Gib;
 
 #[derive(Component)]
@@ -175,6 +178,7 @@ pub struct DisplayLayer {
 pub enum DisplayLayerIndex {
     Background,
     BloodPools,
+    BloodGlobules,
     Gibs,
     Items,
     Projectiles,
@@ -198,7 +202,8 @@ pub struct Hit {
     pub entry_point: Vec2, // Relative to Position
     pub force: Vec2, // Applied directly, entry_point's position has already made a difference to the force
     pub damage: f32,
-    pub apply_force: bool // False if it has already been applied by collision resolution (kinda spaghetti, other projects may have more proper systems)
+    pub apply_force: bool, // False if it has already been applied by collision resolution (kinda spaghetti, other projects may have more proper systems)
+    pub blood_loss: f32
 }
 
 #[derive(Component)]

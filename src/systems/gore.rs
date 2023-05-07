@@ -13,7 +13,8 @@ fn area_to_radius(area: f32) -> f32 {
 	(area / (TAU / 2.0)).sqrt()
 }
 
-const GIB_LEAK_RATE_MULTIPLIER: f32 = 0.01;
+const GIB_LEAK_RATE_MULTIPLIER: f32 = 0.01; // Multiplied with blood amount, not leak rate
+const GLOBULE_LEAK_RATE: f32 = 50.0; // Ditto
 
 pub fn gib( // Not a system
 	commands: &mut Commands,
@@ -86,9 +87,70 @@ pub fn gib( // Not a system
 	}
 }
 
+const GLOBULE_REGROUND_THRESHOLD: f32 = 0.0;
+const GLOBULE_TRIP_THRESHOLD: f32 = 1.0;
+
+pub fn spawn_blood_globules( // Not a system
+	commands: &mut Commands,
+	globule_count: u32,
+	globule_velocity_variation: f32,
+	blood_amount: f32,
+	blood_colour: Color,
+	position: Vec2,
+	velocity: Vec2
+) {
+	let mut rng = rand::thread_rng();
+	for _ in 0..globule_count {
+		let globule_velocity = velocity + random_in_shape::circle(&mut rng, globule_velocity_variation);
+		let drip_time = 0.001;
+		let mut globule_commands = commands.spawn((
+			DisplayLayer {
+				index: DisplayLayerIndex::BloodGlobules,
+				flying: false
+			},
+			Position {value: position},
+			PreviousPosition {value: position},
+			Velocity {value: globule_velocity},
+			Collider {
+				radius: area_to_radius(blood_amount / globule_count as f32),
+				solid: false
+			},
+			ContainedBlood {
+				drip_time: drip_time,
+				drip_time_minimum_multiplier: 0.0,
+				smear_drip_time_multiplier: 0.1,
+				colour: blood_colour,
+				minimum_amount: 0.0,
+
+				leak_rate: GLOBULE_LEAK_RATE,
+				amount: blood_amount / globule_count as f32,
+				drip_timer: 0.0,
+				amount_to_drip: drip_time
+			},
+			BloodGlobule,
+			ShapeBundle {
+                ..default()
+            },
+            Fill::color(blood_colour),
+            Stroke::new(blood_colour, 1.0),
+			FlyingRecoveryRate {value: 750.0},
+			RegroundThreshold {value: GLOBULE_REGROUND_THRESHOLD},
+			TripThreshold {value: GLOBULE_TRIP_THRESHOLD}
+		));
+		if globule_velocity.length() <= GLOBULE_REGROUND_THRESHOLD {
+			globule_commands.insert(Grounded {
+				standing: false,
+				floored_recovery_timer: None
+			});
+		} else {
+			globule_commands.insert(Flying);
+		}
+	}
+}
+
 const STATIONARY_BLOOD_POOL_CLOSENESS_THRESHOLD: f32 = 0.01; // How close a stationary gib must be to a blood pool to claim it
 
-fn get_blood_transfer(blood_amount: f32, minimum_blood_amount: f32, unfiltered_transfer_amount: f32) -> f32 {
+pub fn get_blood_transfer(blood_amount: f32, minimum_blood_amount: f32, unfiltered_transfer_amount: f32) -> f32 { // Not a system
 	return unfiltered_transfer_amount.min(blood_amount).min(blood_amount - minimum_blood_amount);
 }
 
@@ -195,5 +257,23 @@ pub fn blood_loss(
 				spawn_blood_pool(&mut commands, blood_transfer, position.value, contained_blood.colour);
 			}
 		}
+	}
+}
+
+pub fn manage_globules(
+	mut commands: Commands,
+	mut query: Query<(Entity, &mut Collider, &ContainedBlood, &Position, Option<&Grounded>), With<BloodGlobule>>
+) {
+	for (entity, mut collider, contained_blood, position, grounded_option) in query.iter_mut() {
+		if contained_blood.amount <= 0.0 {
+			commands.entity(entity).despawn();
+			continue;
+		}
+		if grounded_option.is_some() {
+			commands.entity(entity).despawn();
+			spawn_blood_pool(&mut commands, contained_blood.amount, position.value, contained_blood.colour);
+			continue;
+		}
+		collider.radius = area_to_radius(contained_blood.amount);
 	}
 }

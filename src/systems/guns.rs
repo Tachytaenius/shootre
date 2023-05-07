@@ -178,6 +178,8 @@ pub fn tick_guns(
     }
 }
 
+const PROJECTILE_BLOOD_LOSS_MULTIPLIER: f32 = 0.5;
+
 pub fn detect_hits( // TODO: Tilemap hits
     mut commands: Commands,
     mut projectile_query: Query<(Entity, &mut Position, &PreviousPosition, &Velocity, &Mass), (With<GunProjectile>, Without<DestroyedButRender>)>,
@@ -226,7 +228,8 @@ pub fn detect_hits( // TODO: Tilemap hits
                     entry_point: entry_wound.unwrap(),
                     force: projectile_velocity.value * projectile_mass.value, // Could take code from circle-circle collision resolution for this in a future project if it's more correct
                     damage: 0.0,
-                    apply_force: true
+                    apply_force: true,
+                    blood_loss: projectile_velocity.value.length() * projectile_mass.value * PROJECTILE_BLOOD_LOSS_MULTIPLIER
                 });
                 break;
             }

@@ -2,9 +2,14 @@ use bevy::prelude::*;
 use crate::components::*;
 use crate::systems::*;
 
+use super::gore::get_blood_transfer;
+use super::gore::spawn_blood_globules;
+
 const GIB_VELOCITY_VARIATION_MULTIPLIER: f32 = 0.25;
 const GIBS_PER_GIB_FORCE_THRESHOLD_IN_GIB_TOTAL_IMPACT: f32 = 400.0;
 const MAX_GIBS_PER_GIBBING: u32 = 100;
+const GLOBULE_VELOCITY_VARIATION_MULTIPLIER: f32 = 0.2;
+const GLOBULE_SPEED: f32 = 100.0;
 
 pub fn process_hits (
 	mut commands: Commands,
@@ -16,7 +21,7 @@ pub fn process_hits (
 		Option<&Mass>,
 		Option<&GibForceThreshold>,
 		&Collider,
-		Option<&ContainedBlood>,
+		Option<&mut ContainedBlood>,
 		Option<&Restitution>
 	)>
 ) {
@@ -28,7 +33,7 @@ pub fn process_hits (
 		mass_option,
 		gib_force_threshold_option,
 		collider,
-		contained_blood_option,
+		mut contained_blood_option,
 		restitution_option
 	) in query.iter_mut() {
 		let mut to_gib = false; // If any force is enough to cause gibbing, gib, but do it using the sum of all forces
@@ -46,6 +51,25 @@ pub fn process_hits (
 				}
 			}
 			// TODO: do stuff with entry_wound and damage
+			if hit.blood_loss > 0.0 && contained_blood_option.is_some() {
+				let contained_blood = contained_blood_option.as_mut().unwrap();
+				let blood_transfer = get_blood_transfer(
+					contained_blood.amount,
+					contained_blood.minimum_amount,
+					hit.blood_loss
+				);
+				contained_blood.amount -= blood_transfer;
+				let globule_velocity = velocity.value - hit.force.normalize_or_zero() * GLOBULE_SPEED;
+				spawn_blood_globules(
+					&mut commands,
+					10,
+					globule_velocity.length() * GLOBULE_VELOCITY_VARIATION_MULTIPLIER,
+					blood_transfer,
+					contained_blood.colour,
+					hit.entry_point,
+					globule_velocity
+				)
+			}
 		}
 		let (blood_amount, blood_colour) = if let Some(contained_blood) = contained_blood_option {
 			(contained_blood.amount, contained_blood.colour)

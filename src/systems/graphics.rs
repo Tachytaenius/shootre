@@ -73,7 +73,7 @@ pub fn update_transforms(
     }
 }
 
-pub fn hollow_flying(mut query: Query<&mut Fill, Added<Flying>>) {
+pub fn hollow_flying(mut query: Query<&mut Fill, (Without<BloodGlobule>, Added<Flying>)>) {
     for mut fill in query.iter_mut() {
         fill.color = Color::NONE;
     }

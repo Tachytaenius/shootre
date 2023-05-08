@@ -8,6 +8,10 @@ use bevy_ecs_tilemap::prelude::*;
 pub fn spawn_camera (mut commands: Commands) {
     commands.spawn(
         Camera2dBundle {
+            projection: OrthographicProjection {
+                scale: 1.0 / crate::graphics::SCALE,
+                ..default()
+            },
             ..default()
         }
     );

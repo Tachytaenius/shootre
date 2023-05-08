@@ -3,12 +3,16 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
+pub const SCALE: f32 = 2.0;
+pub const PLAYER_DISTANCE_FROM_WINDOW_BOTTOM: f32 = 50.0;
+
 pub fn follow_player(
     mut camera_query: Query<&mut Transform, With<Camera>>,
     player_query: Query<
         (&Position, Option<&Angle>),
         (With<Player>, Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>)
-    >
+    >,
+    window_query: Query<&Window, With<bevy::window::PrimaryWindow>>
 ) {
     if let Ok(mut camera_transform) = camera_query.get_single_mut() {
         if let Ok((player_position, player_angle_option)) = player_query.get_single() {
@@ -19,7 +23,8 @@ pub fn follow_player(
                 entity_angle = 0.0;
             }
             camera_transform.rotation = Quat::from_rotation_z(entity_angle - TAU / 4.0);
-            let camera_position = player_position.value + Vec2::from_angle(entity_angle) * 250.0; // Project camera position forwards to move player to bottom of screen
+            let distance_to_move_player_down = (window_query.get_single().unwrap().height() / 2.0) / SCALE - PLAYER_DISTANCE_FROM_WINDOW_BOTTOM;
+            let camera_position = player_position.value + Vec2::from_angle(entity_angle) * distance_to_move_player_down; // Project camera position forwards to move player to bottom of screen
             let z_height = camera_transform.translation.z;
             camera_transform.translation = Vec3::new(camera_position.x, camera_position.y, z_height);
         }

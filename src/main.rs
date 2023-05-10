@@ -38,11 +38,13 @@ fn main() {
         .add_plugin(SpriteLayerPlugin::<DisplayLayer>::default())
         .insert_resource(ClearColor(Color::BLACK))
 
-        .add_startup_system(startup::spawn_camera)
-        .add_startup_system(startup::spawn_player)
-        .add_startup_system(startup::spawn_other)
-        .add_startup_system(startup::spawn_dots)
-        .add_startup_system(startup::spawn_tilemap)
+        .add_startup_systems(( // Chained for determinism
+            startup::spawn_camera,
+            startup::spawn_player,
+            startup::spawn_other,
+            startup::spawn_dots,
+            startup::spawn_tilemap
+        ).chain())
 
         .add_systems((
             pre_update::store_previous_position,

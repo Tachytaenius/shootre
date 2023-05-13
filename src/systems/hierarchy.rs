@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 pub fn send_dropping_events(
     mut dropping_event_writer: EventWriter<Dropping>,
-    query: Query<(&Will, &Children), With<Holder>>
+    query: Query<(&Will, &Children), (With<Holder>, With<Alive>)>
 ) {
     for (will, children) in query.iter() {
         if !will.drop {
@@ -78,7 +78,7 @@ pub fn handle_dropping(
 
 pub fn send_picking_up_events(
     mut commands: Commands,
-    holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder, Option<&Collider>)>,
+    holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder, Option<&Collider>), With<Alive>>,
     pick_up_able_query: Query<(Entity, &Position), (With<Holdable>, Without<Parent>)>
 ) {
     for (holder_entity, will, children_option, position, holder, collider_option) in holder_query.iter() {

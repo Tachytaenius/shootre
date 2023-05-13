@@ -28,7 +28,7 @@ pub fn walking(
         Option<&Angle>,
         Option<&Grounded>,
         Option<&Levitates>
-    )>,
+    ), With<Alive>>,
     time: Res<Time>
 ) {
     for (mut velocity, gait, will, angle_option, grounded_option, levitates_option) in query.iter_mut() {
@@ -86,10 +86,13 @@ pub fn turning(
             &AngularGait,
             &Will
         ),
-        Or<(
-            With<Grounded>,
-            With<Levitates>
-        )>
+        (
+            Or<(
+                With<Grounded>,
+                With<Levitates>
+            )>,
+            With<Alive>
+        )
     >,
     time: Res<Time>
 ) {

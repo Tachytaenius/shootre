@@ -215,17 +215,23 @@ pub fn manage_flyers(
 }
 
 pub fn manage_flooreds(
-    mut query: Query<&mut Grounded>,
+    mut query: Query<(&mut Grounded, Option<&Alive>)>,
     time: Res<Time>
 ) {
-    for mut grounded in query.iter_mut() {
+    for (mut grounded, alive_option) in query.iter_mut() {
         if let Some(old_timer_state) = grounded.floored_recovery_timer {
-            let new_timer_state = (old_timer_state - time.delta_seconds()).max(0.0);
-            if new_timer_state > 0.0 {
-                grounded.floored_recovery_timer = Some(new_timer_state);
+            if alive_option.is_some() {
+                let new_timer_state = (old_timer_state - time.delta_seconds()).max(0.0);
+                if new_timer_state > 0.0 {
+                    grounded.floored_recovery_timer = Some(new_timer_state);
+                } else {
+                    grounded.floored_recovery_timer = None;
+                    grounded.standing = true;
+                }
             } else {
+                // This is also done in damage::dying
+                grounded.standing = false;
                 grounded.floored_recovery_timer = None;
-                grounded.standing = true;
             }
         }
     }

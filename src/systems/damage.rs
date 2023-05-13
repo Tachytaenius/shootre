@@ -85,6 +85,7 @@ pub fn dying(
 	mut commands: Commands,
 	mut die_events: EventReader<Death>,
 	mut drop_event_writer: EventWriter<Dropping>,
+	mut grounded_query: Query<&mut Grounded>,
 	children_query: Query<&Children>,
 	child_query: Query<&HoldingInfo>
 ) {
@@ -92,6 +93,11 @@ pub fn dying(
 		let mut entity_commands = commands.entity(event.entity);
 		entity_commands.remove::<Alive>();
 		entity_commands.insert(Dead);
+		if let Ok(mut grounded) = grounded_query.get_mut(event.entity) {
+			// This is also done in physics::manage_flooreds
+			grounded.standing = false;
+			grounded.floored_recovery_timer = None;
+		}
 		if let Ok(children) = children_query.get(event.entity) {
 			for child_entity in children {
 				if let Ok(_) = child_query.get(*child_entity) {

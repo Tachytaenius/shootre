@@ -69,11 +69,14 @@ pub fn spawn_player(
             }
         ),
         Player,
-        Will {..default()},
-        Grounded {
-            standing: true,
-            floored_recovery_timer: None
-        },
+        (
+            Alive,
+            Will {..default()},
+            Grounded {
+                standing: true,
+                floored_recovery_timer: None
+            }
+        ),
         (
             ContainedBlood {
                 drip_time: 0.1,
@@ -319,7 +322,10 @@ pub fn spawn_other(
                 flying: false
             }
         ),
-        Will {..default()},
+        (
+            Alive,
+            Will {..default()},
+        ),
         Grounded {
             standing: true,
             floored_recovery_timer: None

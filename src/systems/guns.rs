@@ -28,6 +28,7 @@ pub fn tick_guns(
     )>,
     holder_query: Query<(
         Option<&Will>,
+        Option<&Alive>,
         &PreviousPosition,
         Option<&Velocity>,
         Option<&PreviousAngle>,
@@ -44,13 +45,15 @@ pub fn tick_guns(
         previous_angle_option,
         angular_velocity_option
     ) in gun_query.iter_mut() {
-        // If no willed parent, trigger is not depressd, else trigger is depressed depending on will
+        // If no willed alive parent, trigger is not depressed, else trigger is depressed depending on will
         gun.trigger_depressed = false;
         if let Some(parent) = parent_option {
             let parent_result = holder_query.get(parent.get());
-            if let Ok((will_option, _, _, _, _)) = parent_result {
+            if let Ok((will_option, alive_option, _, _, _, _)) = parent_result {
                 if let Some(will) = will_option {
-                    gun.trigger_depressed = will.depress_trigger;
+                    if let Some(_) = alive_option {
+                        gun.trigger_depressed = will.depress_trigger;
+                    }
                 }
             }
         }
@@ -64,6 +67,7 @@ pub fn tick_guns(
         if let Some(parent) = parent_option {
             let parent_result = holder_query.get(parent.get());
             if let Ok((
+                _,
                 _,
                 parent_previous_position,
                 parent_velocity_option,

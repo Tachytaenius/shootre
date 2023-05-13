@@ -2,7 +2,7 @@ use crate::components::*;
 use bevy::prelude::*;
 
 pub fn player_input(
-    mut query: Query<&mut Will, With<Player>>,
+    mut query: Query<&mut Will, (With<Player>, With<Alive>)>,
     keyboard_input: Res<Input<KeyCode>>
 ) {
     if let Ok(mut will) = query.get_single_mut() {

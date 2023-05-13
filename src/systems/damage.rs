@@ -1,13 +1,10 @@
 use bevy::prelude::*;
 use crate::components::*;
-use crate::systems::*;
+use crate::events::*;
 
 use super::gore::get_blood_transfer;
 use super::gore::spawn_blood_globules;
 
-const GIB_VELOCITY_VARIATION_MULTIPLIER: f32 = 1.05;
-const GIBS_PER_GIB_FORCE_THRESHOLD_IN_GIB_TOTAL_IMPACT: f32 = 400.0;
-const MAX_GIBS_PER_GIBBING: u32 = 100;
 const GLOBULE_VELOCITY_VARIATION_MULTIPLIER: f32 = 0.2;
 const GLOBULE_SPEED: f32 = 100.0;
 const WOUND_BLOOD_LOSS_MAXIMUM: f32 = 50.0;
@@ -17,28 +14,26 @@ pub fn process_hits (
 	mut query: Query<(
 		Entity,
 		&Hits,
-		&Position,
 		&mut Velocity,
 		Option<&Mass>,
 		Option<&GibForceThreshold>,
-		&Collider,
-		Option<&mut ContainedBlood>,
-		Option<&Restitution>
-	)>
+		Option<&mut ContainedBlood>
+	)>,
+	mut die_event_writer: EventWriter<Death>,
+	mut gib_event_writer: EventWriter<Gibbing>
 ) {
 	for (
 		entity,
 		hits,
-		position,
 		mut velocity,
 		mass_option,
 		gib_force_threshold_option,
-		collider,
 		mut contained_blood_option,
-		restitution_option
 	) in query.iter_mut() {
+		let mut to_die = false;
 		let mut to_gib = false; // If any force is enough to cause gibbing, gib, but do it using the sum of all forces
 		let mut gib_total_impact = 0.0; // Add lengths of every force to be used in getting how many gibs to create
+
 		for hit in hits.value.iter() { //  The vector gets cleared at the beginnning of each frame
 			if let Some(mass) = mass_option {
 				if hit.apply_force {
@@ -72,34 +67,37 @@ pub fn process_hits (
 				)
 			}
 		}
-		let (blood_amount, blood_colour) = if let Some(contained_blood) = contained_blood_option {
-			(contained_blood.amount, contained_blood.colour)
-		} else {
-			(0.0, Color::NONE)
-		};
+
 		if to_gib {
-			let gib_count = (( // Nasty calculation
-				(gib_total_impact / gib_force_threshold_option.unwrap().value - 1.0) * GIBS_PER_GIB_FORCE_THRESHOLD_IN_GIB_TOTAL_IMPACT
-			) as u32).min(MAX_GIBS_PER_GIBBING) + 2; // Without + 2 it could be 0 or 1
-			gore::gib(
-				&mut commands,
-				entity,
-				gib_count,
-				velocity.value.length() * GIB_VELOCITY_VARIATION_MULTIPLIER,
-				collider.radius,
-				blood_amount,
-				blood_colour,
-				position.value,
-				velocity.value,
-				match mass_option {
-					Some(mass_component) => {Some(mass_component.value)},
-					_ => {None}
-				},
-				match restitution_option {
-					Some(restitution_component) => {Some(restitution_component.value)},
-					_ => {None}
-				},
-			);
+			to_die = true;
+			gib_event_writer.send(Gibbing {
+				entity: entity,
+				total_impact: gib_total_impact
+			});
+		}
+		if to_die {
+			die_event_writer.send(Death {entity: entity});
+		}
+	}
+}
+
+pub fn dying(
+	mut commands: Commands,
+	mut die_events: EventReader<Death>,
+	mut drop_event_writer: EventWriter<Dropping>,
+	children_query: Query<&Children>,
+	child_query: Query<&HoldingInfo>
+) {
+	for event in die_events.iter() {
+		let mut entity_commands = commands.entity(event.entity);
+		entity_commands.remove::<Alive>();
+		entity_commands.insert(Dead);
+		if let Ok(children) = children_query.get(event.entity) {
+			for child_entity in children {
+				if let Ok(_) = child_query.get(*child_entity) {
+					drop_event_writer.send(Dropping {entity: *child_entity});
+				}
+			}
 		}
 	}
 }

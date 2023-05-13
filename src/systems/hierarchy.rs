@@ -1,70 +1,82 @@
 use crate::components::*;
+use crate::events::*;
 use bevy::prelude::*;
 
-pub fn dropping(
+pub fn send_dropping_events(
+    mut dropping_event_writer: EventWriter<Dropping>,
+    query: Query<(&Will, &Children), With<Holder>>
+) {
+    for (will, children) in query.iter() {
+        if !will.drop {
+            continue;
+        }
+        
+        for child_entity in children {
+            dropping_event_writer.send(Dropping {entity: *child_entity});
+        }
+    }
+}
+
+pub fn handle_dropping(
     mut commands: Commands,
-    holder_query: Query<(Entity, &Will, &Children), With<Holder>>,
+    mut dropping_events: EventReader<Dropping>,
     position_query: Query<&Position>,
     velocity_query: Query<&Velocity>,
     angle_query: Query<&Angle>,
     angular_velocity_query: Query<&AngularVelocity>,
     drop_as_grounded_query: Query<&RegroundThreshold, Without<Levitates>>,
     gait_query: Query<&Gait>,
-    child_query: Query<&HoldingInfo, With<Parent>>
+    child_query: Query<(&HoldingInfo, &Parent)>
 ) {
-    for (parent_entity, will, children) in holder_query.iter() {
-        if !will.drop {
-            continue;
+    for event in dropping_events.iter() {
+        let droppee_entity = event.entity;
+        let (holding_info, parent_component) = child_query.get(droppee_entity).unwrap();
+        let held_distance = holding_info.held_distance;
+        let held_angle = holding_info.held_angle;
+        let parent_entity = parent_component.get();
+
+        let mut child_commands = commands.entity(droppee_entity);
+        child_commands.remove_parent();
+        child_commands.remove::<HoldingInfo>();
+
+        if let Ok(position) = position_query.get(parent_entity) {
+            let angle;
+            if let Ok(angle_component) = angle_query.get(parent_entity) {
+                angle = angle_component.value;
+            } else {
+                angle = 0.0;
+            }
+            child_commands.insert(Position {value: position.value + Vec2::from_angle(angle).rotate(Vec2::new(held_distance, 0.0))});
         }
+        if let Ok(velocity) = velocity_query.get(parent_entity) {
+            child_commands.insert(Velocity {value: velocity.value});
 
-        for child_entity in children.iter() {
-            let holding_info = child_query.get(*child_entity).unwrap();
-            let held_distance = holding_info.held_distance;
-            let held_angle = holding_info.held_angle;
-
-            let mut child_commands = commands.entity(*child_entity);
-            child_commands.remove_parent();
-            child_commands.remove::<HoldingInfo>();
-
-            if let Ok(position) = position_query.get(parent_entity) {
-                let angle;
-                if let Ok(angle_component) = angle_query.get(parent_entity) {
-                    angle = angle_component.value;
-                } else {
-                    angle = 0.0;
-                }
-                child_commands.insert(Position {value: position.value + Vec2::from_angle(angle).rotate(Vec2::new(held_distance, 0.0))});
+            let reground_threshold;
+            if let Ok(reground_threshold_component) = drop_as_grounded_query.get(droppee_entity) {
+                reground_threshold = reground_threshold_component.value;
+            } else {
+                reground_threshold = DEFAULT_REGROUND_THRESHOLD;
             }
-            if let Ok(velocity) = velocity_query.get(parent_entity) {
-                child_commands.insert(Velocity {value: velocity.value});
 
-                let reground_threshold;
-                if let Ok(reground_threshold_component) = drop_as_grounded_query.get(*child_entity) {
-                    reground_threshold = reground_threshold_component.value;
-                } else {
-                    reground_threshold = DEFAULT_REGROUND_THRESHOLD;
-                }
-
-                if velocity.value.length() <= reground_threshold {
-                    child_commands.insert(Grounded {
-                        standing: gait_query.contains(*child_entity),
-                        floored_recovery_timer: None
-                    });
-                } else {
-                    child_commands.insert(Flying);
-                }
+            if velocity.value.length() <= reground_threshold {
+                child_commands.insert(Grounded {
+                    standing: gait_query.contains(droppee_entity),
+                    floored_recovery_timer: None
+                });
+            } else {
+                child_commands.insert(Flying);
             }
-            if let Ok(angle) = angle_query.get(parent_entity) {
-                child_commands.insert(Angle {value: angle.value + held_angle}); // TODO: Test that it is indeed parent_angle + held_angle
-            }
-            if let Ok(angular_velocity) = angular_velocity_query.get(parent_entity) {
-                child_commands.insert(AngularVelocity {value: angular_velocity.value});
-            }
+        }
+        if let Ok(angle) = angle_query.get(parent_entity) {
+            child_commands.insert(Angle {value: angle.value + held_angle}); // TODO: Test that it is indeed parent_angle + held_angle
+        }
+        if let Ok(angular_velocity) = angular_velocity_query.get(parent_entity) {
+            child_commands.insert(AngularVelocity {value: angular_velocity.value});
         }
     }
 }
 
-pub fn picking_up(
+pub fn send_picking_up_events(
     mut commands: Commands,
     holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder, Option<&Collider>)>,
     pick_up_able_query: Query<(Entity, &Position), (With<Holdable>, Without<Parent>)>

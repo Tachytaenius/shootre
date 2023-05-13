@@ -1,6 +1,7 @@
 // This project may have TODOs in it
 
 mod components;
+mod events;
 mod systems;
 mod util;
 
@@ -10,6 +11,7 @@ use bevy_ecs_tilemap::prelude::*;
 use extol_sprite_layer::SpriteLayerPlugin;
 use systems::*;
 use components::*;
+use events::*;
 
 fn main() {
     #[derive(SystemSet, Debug, Clone, Hash, Eq, PartialEq)]
@@ -36,7 +38,12 @@ fn main() {
         .add_plugin(ShapePlugin)
         .add_plugin(TilemapPlugin)
         .add_plugin(SpriteLayerPlugin::<DisplayLayer>::default())
+
         .insert_resource(ClearColor(Color::BLACK))
+
+        .add_event::<Dropping>()
+        .add_event::<Death>()
+        .add_event::<Gibbing>()
 
         .add_startup_systems(( // Chained for determinism
             startup::spawn_camera,
@@ -64,8 +71,8 @@ fn main() {
         ).in_set(Wills))
 
         .add_systems(( // Not paralellised
-            hierarchy::dropping,
-            hierarchy::picking_up
+            hierarchy::send_dropping_events,
+            hierarchy::send_picking_up_events
         ).chain().after(Wills).before(LinearAngular::Locomotion))
 
         .add_systems(( // Parallelised
@@ -101,6 +108,9 @@ fn main() {
         .add_systems(( // Not parallelised
             physics::tripping,
             damage::process_hits,
+            damage::dying,
+            hierarchy::handle_dropping,
+            gore::gibbing,
             guns::despawn_stationary_projectiles
         ).chain().before(ConsistentStateChecks).after(LinearAngular::Friction).before(RenderPreparationSet::CommandFlush));
 

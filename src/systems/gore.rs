@@ -1,5 +1,7 @@
 use crate::components::*;
 use crate::util::*;
+use crate::events::*;
+
 use rand::prelude::*;
 use std::f32::consts::TAU;
 use bevy::prelude::*;
@@ -13,7 +15,63 @@ fn area_to_radius(area: f32) -> f32 {
 	(area / (TAU / 2.0)).sqrt()
 }
 
+const GIB_VELOCITY_VARIATION_MULTIPLIER: f32 = 1.05;
+const GIBS_PER_GIB_FORCE_THRESHOLD_IN_GIB_TOTAL_IMPACT: f32 = 400.0;
+const MAX_GIBS_PER_GIBBING: u32 = 100;
 const GIB_LEAK_RATE_MULTIPLIER: f32 = 0.01; // Multiplied with blood amount, not leak rate
+
+pub fn gibbing(
+	mut commands: Commands,
+	mut gib_events: EventReader<Gibbing>,
+	query: Query<(
+		&GibForceThreshold,
+		&Collider,
+		Option<&ContainedBlood>,
+		&Position,
+		&Velocity,
+		Option<&Mass>,
+		Option<&Restitution>
+	)>
+) {
+	for event in gib_events.iter() {
+		let (
+			gib_force_threshold,
+			collider,
+			contained_blood_option,
+			position,
+			velocity,
+			mass_option,
+			restitution_option
+		) = query.get(event.entity).unwrap();
+		let gib_count = (( // Nasty calculation
+			(event.total_impact / gib_force_threshold.value - 1.0) * GIBS_PER_GIB_FORCE_THRESHOLD_IN_GIB_TOTAL_IMPACT
+		) as u32).min(MAX_GIBS_PER_GIBBING) + 2; // Without + 2 it could be 0 or 1
+		let (blood_amount, blood_colour) = if let Some(contained_blood) = contained_blood_option {
+			(contained_blood.amount, contained_blood.colour)
+		} else {
+			(0.0, Color::NONE)
+		};
+		gib(
+			&mut commands,
+			event.entity,
+			gib_count,
+			velocity.value.length() * GIB_VELOCITY_VARIATION_MULTIPLIER,
+			collider.radius,
+			blood_amount,
+			blood_colour,
+			position.value,
+			velocity.value,
+			match mass_option {
+				Some(mass_component) => {Some(mass_component.value)},
+				_ => {None}
+			},
+			match restitution_option {
+				Some(restitution_component) => {Some(restitution_component.value)},
+				_ => {None}
+			},
+		);
+	}
+}
 
 pub fn gib( // Not a system
 	commands: &mut Commands,

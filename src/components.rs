@@ -219,3 +219,9 @@ pub struct HitForceThreshold {pub value: f32}
 
 #[derive(Component)]
 pub struct GibForceThreshold {pub value: f32}
+
+#[derive(Component)]
+pub struct Alive;
+
+#[derive(Component)]
+pub struct Dead;

@@ -76,7 +76,7 @@ pub fn handle_dropping(
     }
 }
 
-pub fn send_picking_up_events(
+pub fn picking_up(
     mut commands: Commands,
     holder_query: Query<(Entity, &Will, Option<&Children>, &Position, &Holder, Option<&Collider>), With<Alive>>,
     pick_up_able_query: Query<(Entity, &Position), (With<Holdable>, Without<Parent>)>

@@ -72,7 +72,7 @@ fn main() {
 
         .add_systems(( // Not paralellised
             hierarchy::send_dropping_events,
-            hierarchy::send_picking_up_events
+            hierarchy::picking_up
         ).chain().after(Wills).before(LinearAngular::Locomotion))
 
         .add_systems(( // Parallelised

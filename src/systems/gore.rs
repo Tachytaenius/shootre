@@ -113,6 +113,7 @@ pub fn gib( // Not a system
 				smear_drip_time_multiplier: 0.3,
 				colour: blood_colour,
 				minimum_amount: 0.0,
+				death_threshold: None,
 
 				leak_rate: blood_amount * GIB_LEAK_RATE_MULTIPLIER,
 				amount: blood_amount / gib_count as f32,
@@ -179,6 +180,7 @@ pub fn spawn_blood_globules( // Not a system
 				smear_drip_time_multiplier: 0.1,
 				colour: blood_colour,
 				minimum_amount: 0.0,
+				death_threshold: None,
 
 				leak_rate: GLOBULE_LEAK_RATE,
 				amount: blood_amount / globule_count as f32,
@@ -300,19 +302,21 @@ pub fn blood_loss(
 				contained_blood.minimum_amount,
 				contained_blood.leak_rate * time.delta_seconds()
 			);
-			contained_blood.amount -= blood_transfer;
-			let mut found = false;
-			for (mut blood_pool, blood_pool_position) in blood_pool_query.iter_mut() {
-				if position.value.distance(blood_pool_position.value) <= STATIONARY_BLOOD_POOL_CLOSENESS_THRESHOLD
-					&& blood_pool.colour == contained_blood.colour
-				{
-					found = true;
-					blood_pool.area += blood_transfer;
-					break;
+			if blood_transfer > 0.0 {
+				contained_blood.amount -= blood_transfer;
+				let mut found = false;
+				for (mut blood_pool, blood_pool_position) in blood_pool_query.iter_mut() {
+					if position.value.distance(blood_pool_position.value) <= STATIONARY_BLOOD_POOL_CLOSENESS_THRESHOLD
+						&& blood_pool.colour == contained_blood.colour
+					{
+						found = true;
+						blood_pool.area += blood_transfer;
+						break;
+					}
 				}
-			}
-			if !found {
-				spawn_blood_pool(&mut commands, blood_transfer, position.value, contained_blood.colour);
+				if !found {
+					spawn_blood_pool(&mut commands, blood_transfer, position.value, contained_blood.colour);
+				}
 			}
 		}
 	}

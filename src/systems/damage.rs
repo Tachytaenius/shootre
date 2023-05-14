@@ -89,12 +89,25 @@ pub fn process_hits (
 	}
 }
 
-pub fn check_health(
+pub fn check_health_and_blood(
 	mut die_event_writer: EventWriter<Death>,
-	query: Query<(Entity, &Health), Without<Dead>>
+	query: Query<(Entity, Option<&Health>, Option<&ContainedBlood>), (With<Alive>, Without<Dead>)>
 ) {
-	for (entity, health) in query.iter() {
-		if health.current <= 0.0 {
+	for (entity, health_option, contained_blood_option) in query.iter() {
+		let mut to_die = false;
+		if let Some(health) = health_option {
+			if health.current <= 0.0 {
+				to_die = true;
+			}
+		}
+		if let Some(contained_blood) = contained_blood_option {
+			if let Some(death_threshold) = contained_blood.death_threshold {
+				if contained_blood.amount <= death_threshold {
+					to_die = true;
+				}
+			}
+		}
+		if to_die {
 			die_event_writer.send(Death {entity: entity});
 		}
 	}

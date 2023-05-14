@@ -88,6 +88,7 @@ pub fn spawn_player(
                 smear_drip_time_multiplier: 0.3,
                 colour: Color::RED,
                 minimum_amount: 100.0,
+                death_threshold: Some(500.0),
 
                 leak_rate: 0.0,
                 amount: 1000.0,
@@ -348,6 +349,7 @@ pub fn spawn_other(
                 smear_drip_time_multiplier: 0.3,
                 colour: Color::RED,
                 minimum_amount: 100.0,
+                death_threshold: Some(500.0),
 
                 leak_rate: 0.0,
                 amount: 1000.0,

@@ -147,6 +147,7 @@ pub struct ContainedBlood {
     pub smear_drip_time_multiplier: f32, // When floored but not stationary, how much to multiply drip time (down) by when resetting the timer
     pub colour: Color,
     pub minimum_amount: f32, // How much to not leak out, so that an entity that has bled out completely and is then gibbed doesn't have bloodless gibs
+    pub death_threshold: Option<f32>, // If some, below or at this amount of blood, the entity dies
 
     pub leak_rate: f32,
     pub amount: f32, // Area of blood pool when fully depleted in pixels

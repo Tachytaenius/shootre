@@ -174,7 +174,8 @@ pub fn tick_guns(
                         DisplayLayer {
                             index: DisplayLayerIndex::Projectiles,
                             flying: false
-                        }
+                        },
+                        BaseDamagePerSpeed {value: gun.projectile_base_damage_per_unit}
                     ));
                 }
             } else {
@@ -186,10 +187,11 @@ pub fn tick_guns(
 }
 
 const PROJECTILE_BLOOD_LOSS_MULTIPLIER: f32 = 0.01;
+const PROJECTILE_DAMAGE_MULTIPLIER: f32 = 1.0;
 
 pub fn detect_hits( // TODO: Tilemap hits
     mut commands: Commands,
-    mut projectile_query: Query<(Entity, &mut Position, &PreviousPosition, &Velocity, &Mass), (With<GunProjectile>, Without<DestroyedButRender>)>,
+    mut projectile_query: Query<(Entity, &mut Position, &PreviousPosition, &Velocity, &Mass, &BaseDamagePerSpeed), (With<GunProjectile>, Without<DestroyedButRender>)>,
     mut target_query: Query<(&Position, &Collider, &mut Hits), Without<GunProjectile>>
 ) {
     // Starts from previous position and goes to current position
@@ -198,7 +200,8 @@ pub fn detect_hits( // TODO: Tilemap hits
         mut projectile_position,
         projectile_previous_position,
         projectile_velocity,
-        projectile_mass
+        projectile_mass,
+        projectile_base_damage_per_speed
     ) in projectile_query.iter_mut() {
         for (
             target_position,
@@ -234,7 +237,7 @@ pub fn detect_hits( // TODO: Tilemap hits
                 target_hits.value.push(Hit {
                     entry_point: entry_wound.unwrap(),
                     force: projectile_velocity.value * projectile_mass.value, // Could take code from circle-circle collision resolution for this in a future project if it's more correct
-                    damage: 0.0,
+                    damage: projectile_velocity.value.length() * projectile_base_damage_per_speed.value * PROJECTILE_DAMAGE_MULTIPLIER,
                     apply_force: true,
                     blood_loss: projectile_velocity.value.length() * projectile_mass.value * PROJECTILE_BLOOD_LOSS_MULTIPLIER
                 });

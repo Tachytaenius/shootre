@@ -83,6 +83,7 @@ pub struct Gun {
     pub muzzle_distance: f32,
     pub projectile_colour: Color,
     pub projectile_mass: f32,
+    pub projectile_base_damage_per_unit: f32,
     pub cooldown: f32,
     pub auto: bool,
 
@@ -231,3 +232,6 @@ pub struct Health {
     pub maximum: f32,
     pub current: f32 // Can go below zero
 }
+
+#[derive(Component)]
+pub struct BaseDamagePerSpeed {pub value: f32}

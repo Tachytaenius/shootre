@@ -225,3 +225,9 @@ pub struct Alive;
 
 #[derive(Component)]
 pub struct Dead;
+
+#[derive(Component)]
+pub struct Health {
+    pub maximum: f32,
+    pub current: f32 // Can go below zero
+}

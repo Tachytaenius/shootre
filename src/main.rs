@@ -108,6 +108,7 @@ fn main() {
         .add_systems(( // Not parallelised
             physics::tripping,
             damage::process_hits,
+            damage::check_health,
             damage::dying,
             hierarchy::handle_dropping,
             gore::gibbing,

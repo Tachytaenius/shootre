@@ -17,7 +17,8 @@ pub fn process_hits (
 		&mut Velocity,
 		Option<&Mass>,
 		Option<&GibForceThreshold>,
-		Option<&mut ContainedBlood>
+		Option<&mut ContainedBlood>,
+		Option<&mut Health>
 	)>,
 	mut die_event_writer: EventWriter<Death>,
 	mut gib_event_writer: EventWriter<Gibbing>
@@ -29,6 +30,7 @@ pub fn process_hits (
 		mass_option,
 		gib_force_threshold_option,
 		mut contained_blood_option,
+		mut health_option
 	) in query.iter_mut() {
 		let mut to_die = false;
 		let mut to_gib = false; // If any force is enough to cause gibbing, gib, but do it using the sum of all forces
@@ -46,7 +48,13 @@ pub fn process_hits (
 					to_gib = true;
 				}
 			}
-			// TODO: do stuff with entry_wound and damage
+
+			// Take damage from hit
+			if let Some(mut health_component) = health_option.as_deref_mut() {
+				health_component.current -= hit.damage;
+			}
+
+			// Lose blood from hit
 			if hit.blood_loss > 0.0 && contained_blood_option.is_some() {
 				let contained_blood = contained_blood_option.as_deref_mut().unwrap();
 				let blood_transfer = get_blood_transfer(
@@ -76,6 +84,17 @@ pub fn process_hits (
 			});
 		}
 		if to_die {
+			die_event_writer.send(Death {entity: entity});
+		}
+	}
+}
+
+pub fn check_health(
+	mut die_event_writer: EventWriter<Death>,
+	query: Query<(Entity, &Health), Without<Dead>>
+) {
+	for (entity, health) in query.iter() {
+		if health.current <= 0.0 {
 			die_event_writer.send(Death {entity: entity});
 		}
 	}

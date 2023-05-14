@@ -75,6 +75,10 @@ pub fn spawn_player(
             Grounded {
                 standing: true,
                 floored_recovery_timer: None
+            },
+            Health {
+                maximum: 1.0,
+                current: 1.0
             }
         ),
         (
@@ -325,6 +329,10 @@ pub fn spawn_other(
         (
             Alive,
             Will {..default()},
+            Health {
+                maximum: 1.0,
+                current: 1.0
+            }
         ),
         Grounded {
             standing: true,

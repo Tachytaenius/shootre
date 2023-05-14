@@ -39,3 +39,11 @@ pub fn player_input(
         will.depress_trigger = keyboard_input.pressed(KeyCode::Space);
     }
 }
+
+pub fn ai(
+    mut query: Query<&mut Will, (Without<Player>, With<Alive>)>
+) {
+    for mut _will in query.iter_mut() {
+        
+    }
+}

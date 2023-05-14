@@ -67,7 +67,7 @@ fn main() {
 
         .add_systems(( // Parallellised
             wills::player_input,
-            // wills::ai
+            wills::ai
         ).in_set(Wills))
 
         .add_systems(( // Not paralellised

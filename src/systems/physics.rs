@@ -3,14 +3,14 @@ use crate::util::*;
 use bevy::prelude::*;
 
 pub fn collision(
-    mut collider_query: Query<(&Collider, &Position, &mut Velocity, Option<&Mass>, Option<&Restitution>, Option<&Children>, Option<(&mut Hits, &HitForceThreshold)>)>,
+    mut collider_query: Query<(&Collider, &mut Position, &mut Velocity, Option<&Mass>, Option<&Restitution>, Option<&Children>, Option<(&mut Hits, &HitForceThreshold)>)>,
     child_mass_query: Query<&Mass>
 ) {
     let mut combinations = collider_query.iter_combinations_mut();
     while let Some([
         (
             a_collider,
-            a_position,
+            mut a_position,
             mut a_velocity,
             a_mass_option,
             a_restitution_option,
@@ -18,7 +18,7 @@ pub fn collision(
             a_hit_related_option
         ), (
             b_collider,
-            b_position,
+            mut b_position,
             mut b_velocity,
             b_mass_option,
             b_restitution_option,
@@ -107,6 +107,15 @@ pub fn collision(
                     });
                 }
             }
+
+            let difference = b_position.value - a_position.value;
+            let direction = difference.normalize();
+            let distance_to_separate = difference.length() - a_collider.radius - b_collider.radius;
+            let a_distance_movement_share = b_mass / (a_mass + b_mass);
+            let b_distance_movement_share = a_mass / (a_mass + b_mass);
+            // a_distance_movement_share + b_distance_movement_share is (ignoring float imprecision) equal to 1
+            a_position.value += direction * distance_to_separate * a_distance_movement_share;
+            b_position.value -= direction * distance_to_separate * b_distance_movement_share;
         }
     }
 }

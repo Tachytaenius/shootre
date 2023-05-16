@@ -50,7 +50,7 @@ fn main() {
             startup::spawn_player,
             startup::spawn_other,
             startup::spawn_dots,
-            startup::spawn_tilemap
+            startup::spawn_tilemaps
         ).chain())
 
         .add_systems((

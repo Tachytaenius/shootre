@@ -178,11 +178,13 @@ pub struct DisplayLayer {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum DisplayLayerIndex {
-    Background,
+    _Background,
+    TilemapFloors,
     BloodPools,
     BloodGlobules,
     Gibs,
     Items,
+    TilemapWalls,
     Projectiles,
     Actors,
 
@@ -236,3 +238,6 @@ pub struct Health {
 
 #[derive(Component)]
 pub struct BaseDamagePerSpeed {pub value: f32}
+
+#[derive(Component)]
+pub struct UpdateTransforms;

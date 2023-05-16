@@ -34,7 +34,7 @@ pub fn follow_player(
 pub fn update_transforms(
     mut main_query: Query<
         (&mut Transform, &DisplayLayer, Option<&Position>, Option<&Angle>, Option<&Parent>, Option<&HoldingInfo>, Option<&Flying>, Option<&Sprite>),
-        Or<(Changed<Position>, Changed<Angle>, Changed<Parent>)>
+        Or<(Added<UpdateTransforms>, Changed<Position>, Changed<Angle>, Changed<Parent>)>
     >,
     parent_query: Query<(&DisplayLayer, Option<&Flying>)>
 ) {

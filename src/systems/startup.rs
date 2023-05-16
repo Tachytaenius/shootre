@@ -4,6 +4,7 @@ use std::f32::consts::TAU;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
+use bevy_ecs_tilemap::tiles::TileTextureIndex;
 
 pub fn spawn_camera (mut commands: Commands) {
     commands.spawn(
@@ -386,43 +387,84 @@ pub fn spawn_dots(
     }
 }
 
-pub fn spawn_tilemap(
+pub fn spawn_tilemaps(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     array_texture_loader: Res<ArrayTextureLoader>
 ) {
     let texture_handle: Handle<Image> = asset_server.load("tiles.png");
     let map_size = TilemapSize {x: 20, y: 20};
-    let tilemap_entity = commands.spawn(
+
+    let main_tilemap_entity = commands.spawn((
         DisplayLayer {
-            index: DisplayLayerIndex::Background,
+            index: DisplayLayerIndex::TilemapFloors,
             flying: false
-        }
-    ).id();
-    let mut tile_storage = TileStorage::empty(map_size);
+        },
+        UpdateTransforms // So that the z updates at least once
+    )).id();
+    let mut main_tile_storage = TileStorage::empty(map_size);
+
+    let wall_tilemap_entity = commands.spawn((
+        DisplayLayer {
+            index: DisplayLayerIndex::TilemapWalls,
+            flying:false
+        },
+        UpdateTransforms 
+    )).id();
+    let mut wall_tile_storage = TileStorage::empty(map_size);
+
     for x in 0..map_size.x {
         for y in 0..map_size.y {
             let tile_position = TilePos {x, y};
-            let tile_entity = commands.spawn(TileBundle {
+
+            let tile = if
+                x == 0 || x == map_size.x - 1 ||
+                y == 0 || y == map_size.y - 1
+            {2} else {1};
+            let wall = tile == 2;
+
+            let main_tile_entity = commands.spawn(TileBundle {
                 position: tile_position,
-                tilemap_id: TilemapId(tilemap_entity),
+                tilemap_id: TilemapId(main_tilemap_entity),
+                texture_index: TileTextureIndex(tile),
                 ..Default::default()
             }).id();
-            tile_storage.set(&tile_position, tile_entity);
+            main_tile_storage.set(&tile_position, main_tile_entity);
+
+            let wall_tile_entity = commands.spawn(TileBundle {
+                position: tile_position,
+                tilemap_id: TilemapId(wall_tilemap_entity),
+                texture_index: TileTextureIndex(if wall {tile} else {0}),
+                ..Default::default()
+            }).id();
+            wall_tile_storage.set(&tile_position, wall_tile_entity);
         }
     }
+
     let tile_size = TilemapTileSize {x: 8.0, y: 8.0};
     let grid_size = tile_size.into();
     let map_type = TilemapType::default();
-    commands.entity(tilemap_entity).insert(TilemapBundle {
+    
+    commands.entity(main_tilemap_entity).insert(TilemapBundle {
         grid_size,
         map_type,
         size: map_size,
-        storage: tile_storage,
+        storage: main_tile_storage,
+        texture: TilemapTexture::Single(texture_handle.clone()),
+        tile_size,
+        ..Default::default()
+    });
+
+    commands.entity(wall_tilemap_entity).insert(TilemapBundle {
+        grid_size,
+        map_type,
+        size: map_size,
+        storage: wall_tile_storage,
         texture: TilemapTexture::Single(texture_handle),
         tile_size,
         ..Default::default()
     });
+
     array_texture_loader.add(TilemapArrayTexture {
         texture: TilemapTexture::Single(asset_server.load("tiles.png")),
         tile_size,

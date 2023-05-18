@@ -387,6 +387,9 @@ pub fn spawn_dots(
     }
 }
 
+pub const TILEMAP_OFFSET: Vec2 = Vec2::new(30.0, 50.0); // TEMP not being ZERO
+pub const TILE_SIZE: f32 = 8.0;
+
 pub fn spawn_tilemaps(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -396,6 +399,7 @@ pub fn spawn_tilemaps(
     let map_size = TilemapSize {x: 20, y: 20};
 
     let main_tilemap_entity = commands.spawn((
+        MainTilemap,
         DisplayLayer {
             index: DisplayLayerIndex::TilemapFloors,
             flying: false
@@ -405,6 +409,7 @@ pub fn spawn_tilemaps(
     let mut main_tile_storage = TileStorage::empty(map_size);
 
     let wall_tilemap_entity = commands.spawn((
+        WallTilemap,
         DisplayLayer {
             index: DisplayLayerIndex::TilemapWalls,
             flying:false
@@ -431,17 +436,19 @@ pub fn spawn_tilemaps(
             }).id();
             main_tile_storage.set(&tile_position, main_tile_entity);
 
+            if wall {
             let wall_tile_entity = commands.spawn(TileBundle {
                 position: tile_position,
                 tilemap_id: TilemapId(wall_tilemap_entity),
-                texture_index: TileTextureIndex(if wall {tile} else {0}),
+                    texture_index: TileTextureIndex(tile),
                 ..Default::default()
             }).id();
             wall_tile_storage.set(&tile_position, wall_tile_entity);
+            }
         }
     }
 
-    let tile_size = TilemapTileSize {x: 8.0, y: 8.0};
+    let tile_size = TilemapTileSize {x: TILE_SIZE, y: TILE_SIZE};
     let grid_size = tile_size.into();
     let map_type = TilemapType::default();
     
@@ -452,6 +459,10 @@ pub fn spawn_tilemaps(
         storage: main_tile_storage,
         texture: TilemapTexture::Single(texture_handle.clone()),
         tile_size,
+        transform: Transform {
+            translation: Vec3::new(TILEMAP_OFFSET.x, TILEMAP_OFFSET.y, 0.0),
+            ..default()
+        },
         ..Default::default()
     });
 
@@ -462,6 +473,10 @@ pub fn spawn_tilemaps(
         storage: wall_tile_storage,
         texture: TilemapTexture::Single(texture_handle),
         tile_size,
+        transform: Transform {
+            translation: Vec3::new(TILEMAP_OFFSET.x, TILEMAP_OFFSET.y, 0.0),
+            ..default()
+        },
         ..Default::default()
     });
 

@@ -241,3 +241,9 @@ pub struct BaseDamagePerSpeed {pub value: f32}
 
 #[derive(Component)]
 pub struct UpdateTransforms;
+
+#[derive(Component)]
+pub struct MainTilemap;
+
+#[derive(Component)]
+pub struct WallTilemap;

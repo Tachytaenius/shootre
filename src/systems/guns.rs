@@ -1,7 +1,9 @@
 use crate::components::*;
 use crate::util::*;
 use crate::util::collision_detection;
+use crate::systems::startup::{TILEMAP_OFFSET, TILE_SIZE};
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
 fn progress_time_with_cooldown_interrupt(current: &mut f32, target: f32, cooldown: &mut f32) {
@@ -192,7 +194,8 @@ const PROJECTILE_DAMAGE_MULTIPLIER: f32 = 1.0;
 pub fn detect_hits( // TODO: Tilemap hits
     mut commands: Commands,
     mut projectile_query: Query<(Entity, &mut Position, &PreviousPosition, &Velocity, &Mass, &BaseDamagePerSpeed), (With<GunProjectile>, Without<DestroyedButRender>)>,
-    mut target_query: Query<(&Position, &Collider, &mut Hits), Without<GunProjectile>>
+    mut target_query: Query<(Entity, &Position, &Collider, &mut Hits), Without<GunProjectile>>,
+    tilemap_query: Query<(&TilemapTileSize, &TileStorage, &TilemapSize), With<WallTilemap>>
 ) {
     // Starts from previous position and goes to current position
     for (
@@ -203,10 +206,36 @@ pub fn detect_hits( // TODO: Tilemap hits
         projectile_mass,
         projectile_base_damage_per_speed
     ) in projectile_query.iter_mut() {
+        let ray_start = projectile_previous_position.value;
+        let ray_end = projectile_position.value;
+        let mut ray_hit_t: Option<f32> = None;
+
+        // Limit the ray to the first hit on the tilemap
+        let (tile_size, tile_storage, tilemap_size) = tilemap_query.get_single().unwrap();
+        for intersection in collision_detection::new_grid_raycast(
+            ray_start, ray_end, tile_size.x, tile_size.y, TILEMAP_OFFSET - TILE_SIZE / 2.0
+        ) {
+            if !(
+                0 <= intersection.tile_x && (intersection.tile_x as u32) < tilemap_size.x &&
+                0 <= intersection.tile_y && (intersection.tile_y as u32) < tilemap_size.y
+            ) {
+                continue;
+            }
+            let tile_option = tile_storage.get(&TilePos {x: intersection.tile_x as u32, y: intersection.tile_y as u32});
+            if let Some(_) = tile_option {
+                ray_hit_t = Some(intersection.intersection_t);
+                break;
+            }
+        }
+
+        // Get the closest entity on the potentially-truncated path
+        let mut hit_entity: Option<Entity> = None;
+        let mut hit_entry_wound: Option<Vec2> = None;
         for (
+            target_entity,
             target_position,
             target_collider,
-            mut target_hits
+            _
         ) in target_query.iter_mut() {
             if !target_collider.solid {
                 continue;
@@ -223,26 +252,46 @@ pub fn detect_hits( // TODO: Tilemap hits
             }
             let (intersection_in, _) = intersections_option.unwrap();
 
-            let entry_wound = if collision_detection::circle_point(target_collider.radius, target_position.value, projectile_previous_position.value) {
-                Some(projectile_previous_position.value)
+            let entry_wound;
+            let collision_t;
+            if collision_detection::circle_point(target_collider.radius, target_position.value, projectile_previous_position.value) {
+                // Hit from inside
+                collision_t = 0.0; // Filled circle
+                entry_wound = projectile_previous_position.value
             } else if 0.0 <= intersection_in && intersection_in <= 1.0 {
-                Some(projectile_previous_position.value.lerp(projectile_position.value, intersection_in))
+                // Hit from outside
+                collision_t = intersection_in;
+                entry_wound = projectile_previous_position.value.lerp(projectile_position.value, intersection_in)
             } else {
-                None
+                // Not a hit at this time
+                continue;
             };
-            // entry_wound is an option because I was working with an exit_wound option too but removed it. This works fine, so
-            if entry_wound.is_some() {
-                projectile_position.value = entry_wound.unwrap();
-                commands.entity(projectile_entity).insert(DestroyedButRender);
-                target_hits.value.push(Hit {
-                    entry_point: entry_wound.unwrap(),
-                    force: projectile_velocity.value * projectile_mass.value, // Could take code from circle-circle collision resolution for this in a future project if it's more correct
-                    damage: projectile_velocity.value.length() * projectile_base_damage_per_speed.value * PROJECTILE_DAMAGE_MULTIPLIER,
-                    apply_force: true,
-                    blood_loss: projectile_velocity.value.length() * projectile_mass.value * PROJECTILE_BLOOD_LOSS_MULTIPLIER
-                });
+
+            if ray_hit_t.is_none() || collision_t < ray_hit_t.unwrap() {
+                hit_entity = Some(target_entity);
+                hit_entry_wound = Some(entry_wound);
+                ray_hit_t = Some(intersection_in);
                 break;
             }
+        }
+
+        if let Some(hit_entity) = hit_entity {
+            let hit_entry_wound = hit_entry_wound.unwrap();
+            let (_, _, _, mut target_hits) = target_query.get_mut(hit_entity).unwrap();
+
+            target_hits.value.push(Hit {
+                entry_point: hit_entry_wound,
+                force: projectile_velocity.value * projectile_mass.value, // Could take code from circle-circle collision resolution for this in a future project if it's more correct
+                damage: projectile_velocity.value.length() * projectile_base_damage_per_speed.value * PROJECTILE_DAMAGE_MULTIPLIER,
+                apply_force: true,
+                blood_loss: projectile_velocity.value.length() * projectile_mass.value * PROJECTILE_BLOOD_LOSS_MULTIPLIER
+            });
+        }
+
+        // Destroy the projectile if we hit a wall or an entity
+        if let Some(ray_hit_t) = ray_hit_t {
+            projectile_position.value = ray_start.lerp(ray_end, ray_hit_t);
+            commands.entity(projectile_entity).insert(DestroyedButRender);
         }
     }
 }

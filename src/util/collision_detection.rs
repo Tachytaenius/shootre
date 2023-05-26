@@ -5,8 +5,18 @@ pub fn circle_circle(a_radius: f32, a_position: Vec2, b_radius: f32, b_position:
     return a_position.distance(b_position) <= a_radius + b_radius;
 }
 
-pub fn _circle_aabb(a_radius: f32, a_position: Vec2, b_width: f32, b_height: f32, b_position: Vec2) -> bool { // b_position is top left corner
+pub fn circle_aabb(a_radius: f32, a_position: Vec2, b_width: f32, b_height: f32, b_position: Vec2) -> bool { // b_position is top left corner
     // Both shapes are filled, not hollow
+
+    // Ported from tinyc2 to match collision resolution also ported from there
+    let l = a_position.clamp(b_position, b_position + Vec2::new(b_width, b_height));
+    let ab = l - a_position;
+    let d2 = ab.dot(ab);
+    let r2 = a_radius * a_radius;
+    return d2 <= r2;
+
+    // Original implementation:
+    /*
     let mut test = a_position;
 
     if a_position.x < b_position.x {
@@ -22,6 +32,7 @@ pub fn _circle_aabb(a_radius: f32, a_position: Vec2, b_width: f32, b_height: f32
     }
 
     return a_position.distance(test) <= a_radius;
+    */
 }
 
 pub fn circle_point(a_radius: f32, a_position: Vec2, b: Vec2) -> bool {

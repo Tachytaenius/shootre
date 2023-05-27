@@ -22,7 +22,7 @@ pub fn collision(
         _ // mut entity_hit_related_option
     ) in collider_query.iter_mut() {
         // Non-solid colliders still can't pass through walls, so no guard clause here
-        
+
         // Get mass and restitution
         // Mass is unused with hits being scrapped to a "TODO"
         // let mut entity_mass;
@@ -46,8 +46,14 @@ pub fn collision(
 
         // Do x axis
         entity_position.value.x += entity_velocity.value.x * time.delta_seconds(); // Apply x velocity
-        for x in 0..tilemap_size.x {
-            for y in 0..tilemap_size.y {
+        // Ignoring the -2 and +2, this "nearby tiles only" calculation probably changes things when the circle's circumference lies exactly on a tile edge
+        // Widening the x by 2 tiles on either side should be enough for any issues with tiles moving the entity out of the zone of checked tiles
+        let lower_x = (((entity_position.value.x - TILEMAP_OFFSET.x + TILE_SIZE / 2.0 - entity_collider.radius) / TILE_SIZE).floor() - 0.0).max(0.0).min((tilemap_size.x - 1) as f32) as u32;
+        let upper_x = (((entity_position.value.x - TILEMAP_OFFSET.x + TILE_SIZE / 2.0 + entity_collider.radius) / TILE_SIZE).floor() + 0.0).max(0.0).min((tilemap_size.x - 1) as f32) as u32;
+        let lower_y = (((entity_position.value.y - TILEMAP_OFFSET.y + TILE_SIZE / 2.0 - entity_collider.radius) / TILE_SIZE).floor()      ).max(0.0).min((tilemap_size.y - 1) as f32) as u32;
+        let upper_y = (((entity_position.value.y - TILEMAP_OFFSET.y + TILE_SIZE / 2.0 + entity_collider.radius) / TILE_SIZE).floor()      ).max(0.0).min((tilemap_size.y - 1) as f32) as u32;
+        for x in lower_x..=upper_x {
+            for y in lower_y..=upper_y {
                 // Guard clauses
                 if tile_storage.get(&TilePos {x: x, y: y}).is_none() {
                     continue;
@@ -62,7 +68,7 @@ pub fn collision(
                     continue;
                 }
 
-                let ( // Tilemap velocity/position changes are always  zero
+                let ( // Tilemap velocity/position changes are always zero
                     (entity_velocity_change, _),
                     (entity_position_change, _)
                 ) = collision_resolution::circle_aabb(
@@ -87,8 +93,12 @@ pub fn collision(
 
         // Do y axis
         entity_position.value.y += entity_velocity.value.y * time.delta_seconds(); // Apply y velocity
-        for x in 0..tilemap_size.x {
-            for y in 0..tilemap_size.y {
+        let lower_x = (((entity_position.value.x - TILEMAP_OFFSET.x + TILE_SIZE / 2.0 - entity_collider.radius) / TILE_SIZE).floor()      ).max(0.0).min((tilemap_size.x - 1) as f32) as u32;
+        let upper_x = (((entity_position.value.x - TILEMAP_OFFSET.x + TILE_SIZE / 2.0 + entity_collider.radius) / TILE_SIZE).floor()      ).max(0.0).min((tilemap_size.x - 1) as f32) as u32;
+        let lower_y = (((entity_position.value.y - TILEMAP_OFFSET.y + TILE_SIZE / 2.0 - entity_collider.radius) / TILE_SIZE).floor() - 0.0).max(0.0).min((tilemap_size.y - 1) as f32) as u32;
+        let upper_y = (((entity_position.value.y - TILEMAP_OFFSET.y + TILE_SIZE / 2.0 + entity_collider.radius) / TILE_SIZE).floor() + 0.0).max(0.0).min((tilemap_size.y - 1) as f32) as u32;
+        for x in lower_x..=upper_x {
+            for y in lower_y..=upper_y {
                 // Guard clauses
                 if tile_storage.get(&TilePos {x: x, y: y}).is_none() {
                     continue;
@@ -103,7 +113,7 @@ pub fn collision(
                     continue;
                 }
 
-                let ( // Tilemap velocity/position changes are always  zero
+                let ( // Tilemap velocity/position changes are always zero
                     (entity_velocity_change, _),
                     (entity_position_change, _)
                 ) = collision_resolution::circle_aabb(
